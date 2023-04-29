@@ -1,5 +1,5 @@
-#ifndef METER_READER_HPP
-#define METER_READER_HPP
+#ifndef _METER_READER_HPP_
+#define _METER_READER_HPP_
 
 #include <opencv2/opencv.hpp>
 #include <string>

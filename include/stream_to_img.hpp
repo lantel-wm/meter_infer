@@ -1,5 +1,5 @@
-#ifndef STREAM_TO_IMG_HPP
-#define STREAM_TO_IMG_HPP
+#ifndef _STREAM_TO_IMG_HPP_
+#define _STREAM_TO_IMG_HPP_
 
 #include <opencv2/opencv.hpp>
 
