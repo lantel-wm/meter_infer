@@ -3,7 +3,7 @@
 data/images/*
 data/videos/*
 weights/*
-engine/*
+engines/*
 logs/*
 
 # vscode ================================
