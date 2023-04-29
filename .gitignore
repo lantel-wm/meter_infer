@@ -1,4 +1,5 @@
 # User ================================
+.vscode/
 data/images/*
 data/videos/*
 weights/*
