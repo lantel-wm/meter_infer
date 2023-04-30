@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include <string>
 #include <thread>
 #include <vector>
@@ -26,9 +27,10 @@ int main(int argc, char **argv)
     cv::imshow("frame", frame);
     cv::waitKey(0);
 
-    Detect detect("yolov8n_batch8.trt");
 
-    detect.Infer(frame);
+    std::vector<detectResult> results;
+    Detect detect("yolov8n_batch8.trt");
+    detect.Infer(frame, results);
 
     return 0;
 }

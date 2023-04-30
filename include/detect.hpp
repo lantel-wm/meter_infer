@@ -3,6 +3,7 @@
 
 #include <opencv2/opencv.hpp>
 #include <string>
+#include <vector>
 #include "NvInfer.h"
 
 using namespace nvinfer1;
@@ -34,14 +35,14 @@ class Detect
         IExecutionContext *context;
 
         cv::Mat processInput(cv::Mat &image); // preprocess the image
-        void processOutput(cv::Mat &image); // postprocess the image
-        void letterbox(cv::Mat &image);
-        void nms(std::vector<detectResult> &results, float nms_threshold); // non-maximum suppression
+        void processOutput(float *output, std::vector<detectResult> &results); // postprocess the image
+        // void letterbox(cv::Mat &image);
+        // void nms(std::vector<detectResult> &results, float nms_threshold); // non-maximum suppression
 
     public:
         Detect(std::string const &engine_path); // load the engine
         ~Detect(); // unload the engine
-        void Infer(cv::Mat &image); // detect the image
+        void Infer(cv::Mat &image, std::vector<detectResult> &results); // detect the image
 };
 
 #endif

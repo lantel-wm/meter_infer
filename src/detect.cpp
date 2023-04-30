@@ -1,7 +1,7 @@
 #include <opencv2/opencv.hpp>
-#include <cuda_runtime_api.h>
 #include <NvInfer.h> 
 #include <string>
+#include <vector>
 #include <fstream>
 
 #include "glog/logging.h"
@@ -115,25 +115,64 @@ cv::Mat Detect::processInput(cv::Mat &image)
     return image_processed;
 }
 
-void Detect::processOutput(cv::Mat &image)
+void Detect::processOutput(float *output, std::vector<detectResult> &results)
 {
-}
-
-void CHECK(cudaError_t status) {
-    
-    if (status != 0)
-    { 
-        LOG(FATAL) << "Cuda failure: " << status;
+    for (int i = 0; i < DET_OUT_CHANNEL0; i++)
+    {
+        for (int j = 0; j < DET_OUT_CHANNEL1; j++)
+        {
+            int offset = i * DET_OUT_CHANNEL1 + j;
+            float *ptr = output + offset * DET_OUT_CHANNEL2;
+            float conf = ptr[4];
+            if (conf > CONF_THRESH)
+            {
+                detectResult result;
+                result.x = ptr[0];
+                result.y = ptr[1];
+                result.w = ptr[2];
+                result.h = ptr[3];
+                result.conf = conf;
+                result.class_id = ptr[5];
+                results.push_back(result);
+            }
+        }
     }
 }
 
-void Detect::Infer(cv::Mat &image)
+void Detect::Infer(cv::Mat &image, std::vector<detectResult> &results)
 {
+    // preprocess input
+    cv::Mat image_processed = this->processInput(image);
+    
     const int inputIndex = this->engine->getBindingIndex(INPUT_NAME); 
     const int outputIndex = this->engine->getBindingIndex(OUTPUT_NAME0);
     LOG(INFO) << "inputIndex: " << inputIndex << ", outputIndex: " << outputIndex;
 
     void* buffers[2]; 
-    cudaMalloc(&buffers[inputIndex], BATCH_SIZE * IN_CHANNEL * IN_WIDTH * IN_HEIGHT * sizeof(float)); 
-    cudaMalloc(&buffers[outputIndex], batchSize * 3 * IN_H * IN_W /4 * sizeof(float));
+    CHECK(cudaMalloc(&buffers[inputIndex], BATCH_SIZE * IN_CHANNEL * IN_WIDTH * IN_HEIGHT * sizeof(float)));
+    CHECK(cudaMalloc(&buffers[outputIndex], BATCH_SIZE * DET_OUT_CHANNEL0 * DET_OUT_CHANNEL1 * sizeof(float)));
+
+    cudaStream_t stream;
+    CHECK(cudaStreamCreate(&stream));
+
+    // copy input to device
+    CHECK(cudaMemcpyAsync(buffers[inputIndex], image_processed.data, BATCH_SIZE * IN_CHANNEL * IN_WIDTH * IN_HEIGHT * sizeof(float), cudaMemcpyHostToDevice, stream));
+
+    // run inference
+    this->context->enqueue(BATCH_SIZE, buffers, stream, nullptr);
+
+    // copy output to host
+    float* output = new float[BATCH_SIZE * DET_OUT_CHANNEL0 * DET_OUT_CHANNEL1];
+    CHECK(cudaMemcpyAsync(output, buffers[outputIndex], BATCH_SIZE * DET_OUT_CHANNEL0 * DET_OUT_CHANNEL1 * sizeof(float), cudaMemcpyDeviceToHost, stream));
+    
+    // wait for inference to finish
+    cudaStreamSynchronize(stream);
+
+    // release the stream and the buffers
+    cudaStreamDestroy(stream);
+    CHECK(cudaFree(buffers[inputIndex]));
+    CHECK(cudaFree(buffers[outputIndex]));
+
+    // postprocess output
+    this->processOutput(output, results);
 }
