@@ -17,7 +17,7 @@ struct Masks
 
 class Segment
 {
-    protected:
+    private:
         std::string engine_path;
         IRuntime *runtime;
         ICudaEngine *engine;

@@ -11,6 +11,7 @@
 #include "glog/logging.h"
 #include "stream_to_img.hpp"
 // #include "meter_reader.hpp"
+#include "detect.hpp"
 #include "config.hpp"
 
 int main(int argc, char **argv)
@@ -24,5 +25,10 @@ int main(int argc, char **argv)
     stream.get_frame(frame);
     cv::imshow("frame", frame);
     cv::waitKey(0);
+
+    Detect detect("yolov8n_batch8.trt");
+
+    detect.Infer(frame);
+
     return 0;
 }
