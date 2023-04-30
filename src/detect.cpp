@@ -1,8 +1,9 @@
 #include <opencv2/opencv.hpp>
+#include <cuda_runtime_api.h>
+#include <NvInfer.h> 
 #include <string>
 #include <fstream>
 
-#include "NvInfer.h"
 #include "glog/logging.h"
 #include "config.hpp"
 #include "detect.hpp"
@@ -26,11 +27,11 @@ class Logger : public ILogger
 Detect::Detect(std::string const &engine_filename)
 {
     // set input size to 640x640
-    this->width = 640;
-    this->height = 640;
+    this->width = IN_WIDTH;
+    this->height = IN_HEIGHT;
 
     // load engine
-    this->engine_path = config::ENGINE_PATH + engine_filename;
+    this->engine_path = ENGINE_PATH + engine_filename;
     this->runtime = createInferRuntime(logger);
 
     std::ifstream engine_file(engine_path, std::ios::binary);
@@ -64,6 +65,8 @@ Detect::Detect(std::string const &engine_filename)
         LOG(ERROR) << "Failed to create execution context";
         return;
     }
+
+    LOG_IF(FATAL, this->engine->getNbBindings() != 2) << "Invalid detection engine file: " << this->engine_path;
 
     LOG(WARNING) << "Successfully loaded engine file " << engine_path;
 
@@ -116,39 +119,21 @@ void Detect::processOutput(cv::Mat &image)
 {
 }
 
+void CHECK(cudaError_t status) {
+    
+    if (status != 0)
+    { 
+        LOG(FATAL) << "Cuda failure: " << status;
+    }
+}
+
 void Detect::Infer(cv::Mat &image)
 {
-    // preprocess the image
-    cv::Mat image_processed = this->processInput(image);
+    const int inputIndex = this->engine->getBindingIndex(INPUT_NAME); 
+    const int outputIndex = this->engine->getBindingIndex(OUTPUT_NAME0);
+    LOG(INFO) << "inputIndex: " << inputIndex << ", outputIndex: " << outputIndex;
 
-    // create buffer for input and output
-    std::vector<void *> buffers(this->engine->getNbBindings());
-    for (int i = 0; i < this->engine->getNbBindings(); i++)
-    {
-        Dims dims = this->engine->getBindingDimensions(i);
-        DataType dtype = this->engine->getBindingDataType(i);
-        int64_t total_size = volume(dims) * max(1, this->engine->getBindingBatchSize());
-        size_t size = total_size * getElementSize(dtype);
-        LOG(INFO) << "Binding " << i << ": " << dims << ", " << dtype << ", " << size;
-        CHECK(cudaMalloc(&buffers[i], size));
-    }
-
-    // copy the image to the input buffer
-    CHECK(cudaMemcpy(buffers[0], image_processed.data, image_processed.total() * image_processed.elemSize(), cudaMemcpyHostToDevice));
-
-    // run inference
-    this->context->executeV2(buffers.data());
-
-    // copy the output buffer to the output
-    cv::Mat output = cv::Mat::zeros(1, 1, CV_32FC1);
-    CHECK(cudaMemcpy(output.data, buffers[1], output.total() * output.elemSize(), cudaMemcpyDeviceToHost));
-
-    // postprocess the output
-    this->processOutput(output);
-
-    // free the buffers
-    for (int i = 0; i < this->engine->getNbBindings(); i++)
-    {
-        CHECK(cudaFree(buffers[i]));
-    }
+    void* buffers[2]; 
+    cudaMalloc(&buffers[inputIndex], BATCH_SIZE * IN_CHANNEL * IN_WIDTH * IN_HEIGHT * sizeof(float)); 
+    cudaMalloc(&buffers[outputIndex], batchSize * 3 * IN_H * IN_W /4 * sizeof(float));
 }
