@@ -28,6 +28,9 @@ extern const int SEG_OUT1_CHANNEL0;
 extern const int SEG_OUT1_CHANNEL1;
 extern const int SEG_OUT1_CHANNEL2;
 
+extern const float CONF_THRESH;
+extern const float NMS_THRESH;
+
 extern const int METER;
 extern const int WATER;
 extern const int LEVEL;

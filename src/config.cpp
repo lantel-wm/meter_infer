@@ -29,6 +29,11 @@ const int SEG_OUT1_CHANNEL0 = 32;
 const int SEG_OUT1_CHANNEL1 = 160;
 const int SEG_OUT1_CHANNEL2 = 160;
 
+// detection confidence threshold
+const float CONF_THRESH = 0.25;
+// detection iou threshold
+const float NMS_THRESH = 0.45;
+
 const int METER = 0; // pressure meter
 const int WATER = 1; // water level gauge
 const int LEVEL = 2; // water level

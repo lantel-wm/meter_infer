@@ -13,8 +13,17 @@ struct detectResult
 {
     std::string name;
     int class_id;
-    float confidence;
+    float conf;
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
+};
+
+// Store binding information.
+struct Binding
+{
+    size_t size = 1;
+    size_t dsize = 1;
+    nvinfer1::Dims dims;
+    std::string name;
 };
 
 // Run image detection.
@@ -30,14 +39,23 @@ class Detect
         cv::Mat M; // affine transformation matrix
         cv::Mat IM; // inverse affine transformation matrix
         std::string engine_path;
+        IExecutionContext *context;
         IRuntime *runtime;
         ICudaEngine *engine;
-        IExecutionContext *context;
+        cudaStream_t stream = nullptr;
+        int num_bindings;
+        int num_inputs = 0;
+        int num_outputs = 0;
+        std::vector<Binding> input_bindings;
+        std::vector<Binding> output_bindings;
+        std::vector<void*> host_ptrs;
+        std::vector<void*> device_ptrs;
 
         cv::Mat processInput(cv::Mat &image); // preprocess the image
         void processOutput(float *output, std::vector<detectResult> &results); // postprocess the image
         // void letterbox(cv::Mat &image);
-        // void nms(std::vector<detectResult> &results, float nms_threshold); // non-maximum suppression
+        void nonMaxSupression(std::vector<detectResult> &results); // non-maximum suppression
+        float iou(cv::Rect &rect1, cv::Rect &rect2); // calculate the IOU of two rectangles
 
     public:
         Detect(std::string const &engine_path); // load the engine

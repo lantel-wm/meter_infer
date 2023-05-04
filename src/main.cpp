@@ -24,13 +24,23 @@ int main(int argc, char **argv)
     stream_to_img stream(IMAGE_PATH + "60.png");
     cv::Mat frame;
     stream.get_frame(frame);
-    cv::imshow("frame", frame);
-    cv::waitKey(0);
+    // cv::imshow("frame", frame);
+    // cv::waitKey(0);
 
 
     std::vector<detectResult> results;
     Detect detect("yolov8n_batch8.trt");
     detect.Infer(frame, results);
+
+    for (auto &result : results)
+    {
+        std::cout << result.name << " " << result.conf << std::endl;
+        cv::rectangle(frame, result.rect, cv::Scalar(0, 0, 255), 2);
+        cv::putText(frame, result.name, cv::Point(result.rect.x, result.rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
+    }
+
+    cv::imshow("frame", frame);
+    cv::waitKey(0);
 
     return 0;
 }

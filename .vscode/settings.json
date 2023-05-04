@@ -66,5 +66,6 @@
         "queue": "cpp",
         "stack": "cpp"
     },
-    "cmake.sourceDirectory": "/home/zzy/meter_infer/src"
+    "cmake.sourceDirectory": "/home/zzy/meter_infer",
+    "Notes.notesLocation": "~/.notes"
 }
