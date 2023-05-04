@@ -122,12 +122,12 @@ Detect::~Detect()
 	cudaStreamDestroy(this->stream);
 	for (auto& ptr : this->device_ptrs)
 	{
-		CHECK(cudaFree(ptr));
+		CUDA_CHECK(cudaFree(ptr));
 	}
 
 	for (auto& ptr : this->host_ptrs)
 	{
-		CHECK(cudaFreeHost(ptr));
+		CUDA_CHECK(cudaFreeHost(ptr));
 	}
 }
 
@@ -305,7 +305,7 @@ void Detect::makePipe(bool warmup)
 				size_t size = bindings.size * bindings.dsize;
 				void* h_ptr = malloc(size);
 				memset(h_ptr, 0, size);
-				CHECK(cudaMemcpyAsync(
+				CUDA_CHECK(cudaMemcpyAsync(
 					this->device_ptrs[0],
 					h_ptr,
 					size,
@@ -372,7 +372,7 @@ void Detect::detect(cv::Mat &image, std::vector<detObject> &results)
     LOG(INFO) << "image processed";
 
     // make pipe
-    this->makePipe(false);
+    this->makePipe(true);
     LOG(INFO) << "pipe made";
 
     // copy to device
