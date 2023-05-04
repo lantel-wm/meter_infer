@@ -9,7 +9,7 @@
 using namespace nvinfer1;
 
 // Store detection results.
-struct detectResult
+struct detObject
 {
     std::string name;
     int class_id;
@@ -51,16 +51,19 @@ class Detect
         std::vector<void*> host_ptrs;
         std::vector<void*> device_ptrs;
 
-        cv::Mat processInput(cv::Mat &image); // preprocess the image
-        void processOutput(float *output, std::vector<detectResult> &results); // postprocess the image
-        // void letterbox(cv::Mat &image);
-        void nonMaxSupression(std::vector<detectResult> &results); // non-maximum suppression
+        void letterbox(const cv::Mat& image, cv::Mat& out); // preprocess the image
+        void processOutput(float *output, std::vector<detObject> &results); // postprocess the image
+        void makePipe(bool warmup);
+        void copyFromMat(cv::Mat &nchw);
+        void infer();
+
+        void nonMaxSupression(std::vector<detObject> &results); // non-maximum suppression
         float iou(cv::Rect &rect1, cv::Rect &rect2); // calculate the IOU of two rectangles
 
     public:
         Detect(std::string const &engine_path); // load the engine
         ~Detect(); // unload the engine
-        void Infer(cv::Mat &image, std::vector<detectResult> &results); // detect the image
+        void detect(cv::Mat &image, std::vector<detObject> &results); // detect the image
 };
 
 #endif
