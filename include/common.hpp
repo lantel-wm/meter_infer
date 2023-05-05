@@ -20,6 +20,30 @@ do                                                    \
         << cudaGetErrorString(error_code);            \
 } while (0)
 
+#define GET(output, i, j, k) \
+    output[(i) * (this->output_bindings[0].dims.d[1] * this->output_bindings[0].dims.d[2]) + (j) * this->output_bindings[0].dims.d[2] + (k)]
+
+#define ARGMAX3(a, b, c) ((a) > (b) ? ((a) > (c) ? 0 : 2) : ((b) > (c) ? 1 : 2))
+#define ARGMAX2(a, b) ((a) > (b) ? 0 : 1)
+
+#define DUMP_OBJ_INFO(det_objs) \
+    for (int i = 0; i < det_objs.size(); i++) \
+    { \
+        LOG(INFO) << "name: " << det_objs[i].name << ", class_id: " << det_objs[i].class_id << ", conf: " << det_objs[i].conf << ", rect: " << det_objs[i].rect; \
+    }
+
+#define DUMP_VECTOR(a) \
+    for (int i = 0; i < a.size(); i++) \
+    { \
+        LOG(INFO) << a[i]; \
+    }
+
+// set val to min if val < min, set val to max if val > max
+inline static float clamp(float val, float min, float max)
+{
+	return val > min ? (val < max ? val : max) : min;
+}
+
 inline int get_size_by_dims(const nvinfer1::Dims& dims)
 {
 	int size = 1;

@@ -67,5 +67,10 @@
         "stack": "cpp"
     },
     "cmake.sourceDirectory": "/home/zzy/meter_infer",
-    "Notes.notesLocation": "~/.notes"
+    "Notes.notesLocation": "~/.notes",
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#352D15",
+        "titleBar.activeBackground": "#4B3F1D",
+        "titleBar.activeForeground": "#FCFBF8"
+    }
 }

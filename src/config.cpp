@@ -10,7 +10,11 @@ const char* INPUT_NAME = "images";
 const char* OUTPUT_NAME0 = "output0";
 const char* OUTPUT_NAME1 = "output1";
 
+// class names
+const std::vector<std::string> CLASS_NAMES = {"meter", "water", "level"};
+
 // input tensor size: [-1, 3, 640, 640]
+const int CLASS_NUM = 3;
 const int BATCH_SIZE = 1;
 const int IN_CHANNEL = 3;
 const int IN_WIDTH = 640;
@@ -33,6 +37,9 @@ const int SEG_OUT1_CHANNEL2 = 160;
 const float CONF_THRESH = 0.25;
 // detection iou threshold
 const float NMS_THRESH = 0.45;
+
+// warmup time
+const int WARMUP_TIME = 10;
 
 const int METER = 0; // pressure meter
 const int WATER = 1; // water level gauge
