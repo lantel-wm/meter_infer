@@ -54,6 +54,7 @@ class Detect
         std::vector<void*> device_ptrs;
 
         void letterbox(const cv::Mat& image, cv::Mat& out); // make letterbox for the image
+        void preprocess(std::vector<cv::Mat> &images); // preprocess the image
         void postprocess(std::vector<DetObject> &det_objs); // postprocess the image
         void makePipe(bool warmup);
         void copyFromMat(cv::Mat &nchw);

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.26)
 
-Project(meterReader)
+Project(meterReader CXX CUDA)
 
 # set working directory
 set(ROOT_DIR ${CMAKE_SOURCE_DIR})
