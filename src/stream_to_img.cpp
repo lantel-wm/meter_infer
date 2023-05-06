@@ -53,12 +53,15 @@ bool stream_to_img::get_frame(cv::Mat &frame)
                 this->is_opened = false;
                 break;
             case VIDEO:
-            case RTSP:
                 this->is_opened = this->cap.isOpened();
                 if (this->is_opened) {
                     this->cap >> frame;
                 }
+                if (frame.empty()) {
+                    this->is_opened = false;
+                }
                 break;
+            case RTSP:
             default:
                 break;
         }

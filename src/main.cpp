@@ -34,14 +34,20 @@ int main(int argc, char **argv)
     detect.engineInfo();
     LOG(INFO) << "engine loaded";
 
-    // for (int i = 0; i < 100; i++)
+    std::vector<DetObject> det_objs;
+
+    stream_to_img stream(IMAGE_PATH + "60.png");
+    // stream_to_img stream(VIDEO_PATH + "201.mp4");
+    cv::Mat frame;
+
+    while (stream.is_open())
     {
-        std::vector<DetObject> det_objs;
-
-        stream_to_img stream(IMAGE_PATH + "60.png");
-        cv::Mat frame;
         stream.get_frame(frame);
-
+        if (frame.empty())
+        {
+            LOG(WARNING) << "empty frame";
+            continue;
+        }
         LOG(INFO) << "frame size: " << frame.size();
         auto t1 = clock();
         detect.detect(frame, det_objs);
@@ -51,6 +57,8 @@ int main(int argc, char **argv)
         DUMP_OBJ_INFO(det_objs);
         for (auto &obj : det_objs)
         {
+            cv::Mat crop = frame(obj.rect);
+            cv::imwrite("crop" + std::to_string(obj.class_id) + ".png", crop);    
             cv::rectangle(frame, obj.rect, cv::Scalar(0, 0, 255), 2);
             cv::putText(frame, obj.name, cv::Point(obj.rect.x, obj.rect.y), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
         }
