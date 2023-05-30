@@ -86,40 +86,106 @@ __global__ void warp_affine(
     pdst[2] = c2;
 }
 
+// [w, h, c] -> [c, w, h]
+// 0...255 -> 0...1
+__global__ void blobFromImage(const uint8_t *d_ptr_dst, float *d_ptr_input, int w, int h, int c, int n)
+{
+    // block: 20x20x1
+    // grid: 32x32x3
+    __shared__ float shared_memory[32][32][3];
+
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = threadIdx.z;
+
+    if (x < w && y < h && z < c)
+    {
+        int in_index = z + y * c + x * c * h;
+        shared_memory[threadIdx.x][threadIdx.y][threadIdx.z] = d_ptr_dst[in_index];
+    }
+
+    __syncthreads();
+
+    // xyz -> zxy
+    // e.g. (114, 514, 3) -> (3, 114, 514)
+    // x = 114 = 20 * 5 + 14, threadIdx.x = 14, blockIdx.x = 5
+    // y = 514 = 20 * 25 + 14, threadIdx.y = 14, blockIdx.y = 25
+    // z = 3, threadIdx.z = 3
+    
+    int new_x = y;
+    int new_y = z;
+    int new_z = x;
+
+    if (new_x < c && new_y < w && new_z < h)
+    {
+        int out_index = new_z + new_y * h + new_x * w * h;
+        d_ptr_input[out_index] = shared_memory[threadIdx.x][threadIdx.y][threadIdx.z] / 255.0f;
+    }
+}
+
 void Detect::preprocess(std::vector<cv::Mat> &images)
 {
-   for (auto &src : images)
-   {
-        uint8_t* d_ptr_src; // device pointer for src image
-        uint8_t* d_pre_dst; // device pointer for dst image
-        int src_w = src.cols; // src image width
-        int src_h = src.rows; // src image height
-        int dst_w = this->input_width; // dst image width
-        int dst_h = this->input_height; // dst image height
+    int img_num = 0;
+    int batch_size = images.size();
+
+	this->context->setBindingDimensions(
+		0,
+		Dims
+			{
+				4,
+				{ 8, 3, this->input_height, this->input_width }
+			}
+	);
+
+    LOG(INFO) << "binding dimensions set";
+    for (auto &src : images)
+    {
+        uint8_t *d_ptr_src;                                    // device pointer for src image
+        uint8_t *d_ptr_dst;                                    // device pointer for dst image
+        int src_w = src.cols;                                  // src image width
+        int src_h = src.rows;                                  // src image height
+        int dst_w = this->input_width;                         // dst image width
+        int dst_h = this->input_height;                        // dst image height
         size_t src_size = src_w * src_h * 3 * sizeof(uint8_t); // src image size
         size_t dst_size = dst_w * dst_h * 3 * sizeof(uint8_t); // dst image size
 
-        CUDA_CHECK(cudaMalloc((uint8_t **)&d_ptr_src, src_size)); 
-        CUDA_CHECK(cudaMalloc((uint8_t **)&d_pre_dst, dst_size));
+        CUDA_CHECK(cudaMalloc((uint8_t **)&d_ptr_src, src_size));
+        CUDA_CHECK(cudaMalloc((uint8_t **)&d_ptr_dst, dst_size));
         CUDA_CHECK(cudaMemcpy(d_ptr_src, src.data, src_size, cudaMemcpyHostToDevice));
-        
+
         // compute affine tranformation matrix
         (this->affine_matrix).compute(cv::Size(src_w, src_h), cv::Size(dst_w, dst_h));
 
-        dim3 block(32, 32);
-        dim3 grid((dst_w + block.x - 1) / block.x, (dst_h + block.y - 1) / block.y);
+        dim3 block1(32, 32);
+        dim3 grid1((dst_w + block1.x - 1) / block1.x, (dst_h + block1.y - 1) / block1.y);
 
-        LOG(INFO) << "warp_affine kernel launch with " 
-            << grid.x << "x" << grid.y << " blocks of " 
-            << block.x << "x" << block.y << " threads";
+        LOG(INFO) << "warp_affine kernel launch with "
+                  << grid1.x << "x" << grid1.y << " blocks of "
+                  << block1.x << "x" << block1.y << " threads";
 
         // do letterbox transformation on src image
         // src: [src_h, src_w, 3], dst: [dst_h, dst_w, 3]
-        warp_affine<<<grid, block, 0, nullptr>>>(
+        warp_affine<<<grid1, block1, 0, nullptr>>>(
             d_ptr_src, src_w * 3, src_w, src_h,
-            d_pre_dst, dst_w * 3, dst_w, dst_h,
-            114, this->affine_matrix
-        );
+            d_ptr_dst, dst_w * 3, dst_w, dst_h,
+            114, this->affine_matrix);
         
-   }
+        // warp affine test code, currently no bug
+        // view_device_img(d_ptr_dst, dst_size, dst_w, dst_h, "dst");
+        // LOG_ASSERT(0) << "stop here";
+
+        dim3 block2(32, 32, 3);
+        dim3 grid2((dst_w + block2.x - 1) / block2.x, (dst_h + block2.y - 1) / block2.y, (3 + block2.z - 1) / block2.z);
+
+        LOG(INFO) << "blobFromImage kernel launch with "
+                  << grid2.x << "x" << grid2.y << "x" << grid2.z << " blocks of "
+                  << block2.x << "x" << block2.y << "x" << block2.z << " threads";
+
+        // TODO: fix bug here
+        blobFromImage<<<grid2, block2, 0, nullptr>>>(
+            d_ptr_dst, (float*)this->device_ptrs[0] + img_num * dst_w * dst_h * 3, 
+            dst_w, dst_h, 3, batch_size
+        );
+        img_num++;
+    }
 }

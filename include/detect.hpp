@@ -12,6 +12,7 @@ using namespace nvinfer1;
 struct DetObject
 {
     std::string name;
+    int batch_id;
     int class_id;
     float conf;
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
@@ -100,18 +101,18 @@ class Detect
 
         void letterbox(const cv::Mat &image, cv::Mat &out); // make letterbox for the image
         void preprocess(std::vector<cv::Mat> &images);      // preprocess the image
-        void postprocess(std::vector<DetObject> &det_objs); // postprocess the image
+        void postprocess(std::vector<std::vector<DetObject> >  &det_objs); // postprocess the image
         void makePipe(bool warmup);
         void copyFromMat(cv::Mat &nchw);
         void infer();
 
-        void nonMaxSuppression(std::vector<DetObject> &det_objs); // non-maximum suppression
+        void nonMaxSuppression(std::vector<std::vector<DetObject> >  &det_objs); // non-maximum suppression
         float iou(const cv::Rect rect1, const cv::Rect rect2);    // calculate the IOU of two rectangles
 
     public:
         Detect(std::string const &engine_path);                       // load the engine
         ~Detect();                                                    // unload the engine
-        void detect(cv::Mat &image, std::vector<DetObject> &results); // detect the image
+        void detect(std::vector<cv::Mat> &images, std::vector<std::vector<DetObject> >  &results); // detect the image
         void engineInfo();                                            // print the engine information
 };
 

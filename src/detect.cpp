@@ -247,43 +247,46 @@ float Detect::iou(const cv::Rect rect1, const cv::Rect rect2)
     return intersection_area / union_;
 }
 
-void Detect::nonMaxSuppression(std::vector<DetObject> &det_objs)
+void Detect::nonMaxSuppression(std::vector<std::vector<DetObject> >  &det_objs)
 {
-    // sort the results by confidence in descending order
-    std::sort(det_objs.begin(), det_objs.end(), [](DetObject &a, DetObject &b) { return a.conf > b.conf; });
 
-    DUMP_OBJ_INFO(det_objs);
-    
-    std::vector<bool> keep(det_objs.size(), true);
-    for (int i = 0; i < det_objs.size(); i++)
+    for (int l = 0; l < det_objs.size(); l++)
     {
-        if (keep[i])
+        // sort the results by confidence in descending order
+        std::sort(det_objs[l].begin(), det_objs[l].end(), [](DetObject &a, DetObject &b) { return a.conf > b.conf; });
+
+        DUMP_OBJ_INFO(det_objs[l]);
+        std::vector<bool> keep(det_objs[l].size(), true);
+        for (int i = 0; i < det_objs[l].size(); i++)
         {
-            for (int j = i + 1; j < det_objs.size(); j++)
+            if (keep[i])
             {
-                if (keep[j])
+                for (int j = i + 1; j < det_objs[l].size(); j++)
                 {
-                    if (this->iou(det_objs[i].rect, det_objs[j].rect) > NMS_THRESH)
+                    if (keep[j])
                     {
-                        keep[j] = false;
+                        if (this->iou(det_objs[l][i].rect, det_objs[l][j].rect) > NMS_THRESH)
+                        {
+                            keep[j] = false;
+                        }
                     }
                 }
             }
         }
-    }
 
-    for (int i = 0, j = 0; i < det_objs.size(); i++, j++)
-    {
-        if (!keep[j])
+        for (int i = 0, j = 0; i < det_objs[l].size(); i++, j++)
         {
-            det_objs.erase(det_objs.begin() + i);
-            i--;
+            if (!keep[j])
+            {
+                det_objs[l].erase(det_objs[l].begin() + i);
+                i--;
+            }
         }
     }
     LOG(INFO) << "non_max_suppresion done";
 }
 
-void Detect::postprocess(std::vector<DetObject> &det_objs)
+void Detect::postprocess(std::vector<std::vector<DetObject> >  &det_objs)
 {
     det_objs.clear();
     int batch_size = this->output_bindings[0].dims.d[0];
@@ -293,12 +296,12 @@ void Detect::postprocess(std::vector<DetObject> &det_objs)
     LOG(INFO) << "batch_size: " << batch_size << ", det_length: " << det_length << ", num_dets: " << num_dets;
 
     // M = [[scale, 0, delta_x], [0, scale, delta_y]]
-	float dw = this->M.at<float>(0, 2);
-	float dh = this->M.at<float>(1, 2);
-	float ratio = 1.f / this->M.at<float>(0, 0);
+	float dw = this->affine_matrix.mat[2];
+	float dh = this->affine_matrix.mat[5];
+	float ratio = this->affine_matrix.inv_mat[0];
     LOG(INFO) << "dw: " << dw << ", dh: " << dh << ", ratio: " << ratio;
 
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < batch_size; i++)
     {
         for (int k = 0; k < num_dets; k++)
         {
@@ -332,9 +335,10 @@ void Detect::postprocess(std::vector<DetObject> &det_objs)
             DetObject det_obj;
             det_obj.rect = cv::Rect(x1, y1, x2 - x1, y2 - y1);
             det_obj.conf = conf;
+            det_obj.batch_id = i;
             det_obj.class_id = class_id;
             det_obj.name = CLASS_NAMES[class_id];
-            det_objs.push_back(det_obj);
+            det_objs[i].push_back(det_obj);
         }
     }
     
@@ -446,20 +450,21 @@ void Detect::copyFromMat(cv::Mat& nchw)
 }
 
 // run detection on the image
-void Detect::detect(cv::Mat &image, std::vector<DetObject> &det_objs)
+void Detect::detect(std::vector<cv::Mat> &images, std::vector<std::vector<DetObject> >  &det_objs)
 {
     // preprocess input
     cv::Mat nchw;
     auto t1 = clock();
-    this->letterbox(image, nchw);
+    // this->letterbox(image, nchw);
+    this->preprocess(images);
     auto t2 = clock();
     LOG(WARNING) << "image processed in " << (t2 - t1) / 1000.0 << " ms";
 
-    // copy to device
-    t1 = clock();
-    this->copyFromMat(nchw);
-    t2 = clock();
-    LOG(WARNING) << "image copied to device in " << (t2 - t1) / 1000.0 << " ms";
+    // // copy to device
+    // t1 = clock();
+    // this->copyFromMat(nchw);
+    // t2 = clock();
+    // LOG(WARNING) << "image copied to device in " << (t2 - t1) / 1000.0 << " ms";
 
     // run inference
     t1 = clock();

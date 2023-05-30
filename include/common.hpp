@@ -12,7 +12,7 @@ do                                                    \
 {                                                     \
     const cudaError_t error_code = call;              \
     LOG_ASSERT(error_code == cudaSuccess)             \
-        << "\nCUDA Error:\n"                            \
+        << "\nCUDA Error:\n"                          \
         << "    File:       " << __FILE__ << "\n"     \
         << "    Line:       " << __LINE__ << "\n"     \
         << "    Error code: " << error_code << "\n"   \
@@ -23,13 +23,25 @@ do                                                    \
 #define GET(output, i, j, k) \
     output[(i) * (this->output_bindings[0].dims.d[1] * this->output_bindings[0].dims.d[2]) + (j) * this->output_bindings[0].dims.d[2] + (k)]
 
+// get value from 3D array
+// a is a pointer to the array, i, j, k are the index of the array, h, w, c are the height, width and channel of the array
+// the array is stored in the format of HWC
+#define GET3(a, i, j, k, h, w, c) \
+    a[(i) * (h * w) + (j) * (w) + (k)]
+
+// get value from 4D array
+// a is a pointer to the array, i, j, k, l are the index of the array, n, c, h, w are the batch size, channel, height and width of the array
+// the array is stored in the format of NCHW
+#define GET4(a, i, j, k, l, n, c, h, w) \
+    a[(i) * (n * c * h) + (j) * (c * h) + (k) * (h) + (l)]
+
 #define ARGMAX3(a, b, c) ((a) > (b) ? ((a) > (c) ? 0 : 2) : ((b) > (c) ? 1 : 2))
 #define ARGMAX2(a, b) ((a) > (b) ? 0 : 1)
 
-#define DUMP_OBJ_INFO(det_objs) \
-    for (int i = 0; i < det_objs.size(); i++) \
+#define DUMP_OBJ_INFO(a) \
+    for (int i = 0; i < (a).size(); i++) \
     { \
-        LOG(INFO) << "name: " << det_objs[i].name << ", class_id: " << det_objs[i].class_id << ", conf: " << det_objs[i].conf << ", rect: " << det_objs[i].rect; \
+        LOG(INFO) << "name: " << (a)[i].name << ", class_id: " << (a)[i].class_id << ", conf: " << (a)[i].conf << ", rect: " << (a)[i].rect; \
     }
 
 #define DUMP_VECTOR(a) \
@@ -71,6 +83,16 @@ inline int type_to_size(const nvinfer1::DataType& dataType)
         default:
             return 4;
 	}
+}
+
+// view images on device to help debugging
+inline void view_device_img(uint8_t* d_ptr, size_t size, int w, int h, std::string name)
+{
+    LOG(INFO) << "viewing device image " << name;
+    cv::Mat img(w, h, CV_8UC3);
+    CUDA_CHECK(cudaMemcpy(img.data, d_ptr, size, cudaMemcpyDeviceToHost));
+    cv::imwrite(name + ".jpg", img);
+    LOG(INFO) << "device image" << name << "saved";
 }
 
 #endif
