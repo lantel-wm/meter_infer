@@ -129,7 +129,7 @@ inline void view_device_batch_img(float* d_ptr, int n, int c, int w, int h, std:
                     int oy = loc[i][1] * w + l;
                     val_sum += GET4(h_ptr, i, j, k, l, n, c, h, w);
                     float dn = clamp(GET4(h_ptr, i, j, k, l, n, c, h, w) * 255, 0, 255);
-                    LOG(INFO) << "ox: " << ox << ", oy: " << oy << ", dn: " << dn << ", sum: " << val_sum;
+                    // LOG(INFO) << "ox: " << ox << ", oy: " << oy << ", dn: " << dn << ", sum: " << val_sum;
                     img.at<cv::Vec3b>(ox, oy)[j] = dn;
                 }
             }

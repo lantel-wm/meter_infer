@@ -16,6 +16,7 @@ message(STATUS "Include directory: ${INCLUDE_DIR}")
 # set compiler
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -Wall -O3")
 set(CMAKE_CXX_FLAGS "-Wno-error=deprecated-declarations -Wno-deprecated-declarations ")
+set(CUDA_NVCC_FLAGS "--maxrregcount=256")
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINARY_DIR})
 
 # set opencv
