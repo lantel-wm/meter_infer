@@ -25,7 +25,7 @@ using namespace google;
 int main(int argc, char **argv)
 {
     google::InitGoogleLogging(argv[0]);
-    FLAGS_stderrthreshold = google::INFO;
+    FLAGS_stderrthreshold = google::WARNING;
     FLAGS_log_dir = LOG_PATH;
 
     LOG(INFO) << "program started";

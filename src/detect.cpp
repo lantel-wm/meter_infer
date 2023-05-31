@@ -52,6 +52,10 @@ Detect::Detect(std::string const &engine_filename)
 
     LOG(INFO) << "engine file loaded into buffer";
 
+    // set image size to 1920x1080
+    this->image_width = 1920;
+    this->image_height = 1080;
+
     // set input size to 640x640
     this->input_width = IN_WIDTH;
     this->input_height = IN_HEIGHT;
