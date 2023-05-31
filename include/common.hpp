@@ -105,6 +105,36 @@ inline void view_device_input_img(float* d_ptr, size_t size, int w, int h, std::
     LOG(INFO) << "device input image" << name << "saved";
 }
 
+// view image batch on device to help debugging
+inline void view_device_input_img_batch(uint8_t* d_ptr, int n, int c, int h, int w, std::string name)
+{
+    LOG(INFO) << "viewing device image batch " << name;
+    cv::Mat img(h * 2, w * 4, CV_8UC3);
+    LOG(INFO) << "img size: " << img.size();
+    size_t size = n * c * w * h * sizeof(uint8_t);
+    uint8_t* h_ptr = new uint8_t[size];
+    CUDA_CHECK(cudaMemcpy(h_ptr, d_ptr, size, cudaMemcpyDeviceToHost));
+    const int loc[8][2] = {{0, 0}, {0, 1}, {0, 2}, {0, 3}, {1, 0}, {1, 1}, {1, 2}, {1, 3}};
+    // n * h * w * c
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < h; j++)
+        {
+            for (int k = 0; k < w; k++)
+            {
+                int ox = loc[i][0] * h + j;
+                int oy = loc[i][1] * w + k;
+                for (int l = 0; l < c; l++)
+                {
+                    img.at<cv::Vec3b>(ox, oy)[l] = h_ptr[i * h * w * c + j * w * c + k * c + l];   
+                }
+            }
+        }
+    }
+    cv::imwrite(name + ".jpg", img);
+    LOG(INFO) << "device image" << name << "saved";
+}
+
 // view batch images on device to help debugging
 inline void view_device_batch_img(float* d_ptr, int n, int c, int w, int h, std::string name)
 {
