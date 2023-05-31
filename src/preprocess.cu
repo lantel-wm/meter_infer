@@ -88,19 +88,18 @@ __global__ void warp_affine(
 
 // [h, w, c] -> [c, h, w]
 // 0...255 -> 0...1
+// BGR -> RGB
 __global__ void blobFromImage(uint8_t* input, float* output, int img_num, int h, int w, int c, int n)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-    printf("transpose3D: %d, %d, %d\n", x, y, z);
     if (x < h && y < w && z < c)
     {
-        int input_idx = x * (c * w) + y * c + z;
+        int input_idx = x * (c * w) + y * c + (2 - z);
         int output_idx = img_num * (w * h * c) + z * (w * h) + x * w + y;
         output[output_idx] = input[input_idx] / 255.f;
-        printf("input: %d, output: %f", input[input_idx], output[output_idx]);
     }
 }
 
@@ -145,7 +144,7 @@ void Detect::preprocess(std::vector<cv::Mat> &images)
         // view_device_img(d_ptr_dst, dst_size, dst_w, dst_h, "dst");
         // LOG_ASSERT(0) << "stop here";
 
-        dim3 block2(32, 32, 3);
+        dim3 block2(16, 16, 3);
         dim3 grid2((dst_w + block2.x - 1) / block2.x, (dst_h + block2.y - 1) / block2.y, (3 + block2.z - 1) / block2.z);
 
         LOG(INFO) << "blobFromImage kernel launched with "
@@ -158,9 +157,9 @@ void Detect::preprocess(std::vector<cv::Mat> &images)
             d_ptr_dst, (float*)this->device_ptrs[0], img_num, 
             dst_h, dst_w, 3, batch_size
         );
-        CUDA_CHECK(cudaDeviceSynchronize());
         img_num++;
     }
-    view_device_batch_img((float*)this->device_ptrs[0], batch_size, 3, this->input_width, this->input_height, "input");
-    LOG_ASSERT(0) << "stop here";
+    // blobFromImage test code, currently no bug
+    // view_device_batch_img((float*)this->device_ptrs[0], batch_size, 3, this->input_width, this->input_height, "input");
+    // LOG_ASSERT(0) << "stop here";
 }

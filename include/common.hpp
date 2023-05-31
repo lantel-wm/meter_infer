@@ -115,10 +115,9 @@ inline void view_device_batch_img(float* d_ptr, int n, int c, int w, int h, std:
     float* h_ptr = new float[size];
     CUDA_CHECK(cudaMemcpy(h_ptr, d_ptr, size, cudaMemcpyDeviceToHost));
     const int loc[8][2] = {{0, 0}, {0, 1}, {0, 2}, {0, 3}, {1, 0}, {1, 1}, {1, 2}, {1, 3}};
-    float val_sum = 0;
     for (int i = 0; i < n; i++)
     {
-        LOG(INFO) << "batch: " << i << ", location: " << loc[i][0] * w << ", " << loc[i][1] * h;
+        // LOG(INFO) << "batch: " << i << ", location: " << loc[i][0] * w << ", " << loc[i][1] * h;
         for (int j = 0; j < c; j++)
         {
             for (int k = 0; k < h; k++)
@@ -127,15 +126,12 @@ inline void view_device_batch_img(float* d_ptr, int n, int c, int w, int h, std:
                 {
                     int ox = loc[i][0] * h + k;
                     int oy = loc[i][1] * w + l;
-                    val_sum += GET4(h_ptr, i, j, k, l, n, c, h, w);
                     float dn = clamp(GET4(h_ptr, i, j, k, l, n, c, h, w) * 255, 0, 255);
-                    // LOG(INFO) << "ox: " << ox << ", oy: " << oy << ", dn: " << dn << ", sum: " << val_sum;
-                    img.at<cv::Vec3b>(ox, oy)[j] = dn;
+                    img.at<cv::Vec3b>(ox, oy)[2 - j] = dn; // RGB -> BGR
                 }
             }
         }
     }
-    LOG(INFO) << "val_sum: " << val_sum;
     cv::imwrite(name + ".jpg", img);
     LOG(INFO) << "device batch image" << name << "saved";
 }
