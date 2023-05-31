@@ -127,17 +127,6 @@ void Detect::preprocess(std::vector<cv::Mat> &images)
 {
     int img_num = 0;
     int batch_size = images.size();
-
-	this->context->setBindingDimensions(
-		0,
-		Dims
-			{
-				4,
-				{ 8, 3, this->input_height, this->input_width }
-			}
-	);
-
-    LOG(INFO) << "binding dimensions set";
     for (auto &src : images)
     {
         uint8_t *d_ptr_src;                                    // device pointer for src image

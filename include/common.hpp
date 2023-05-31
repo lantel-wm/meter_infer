@@ -95,4 +95,15 @@ inline void view_device_img(uint8_t* d_ptr, size_t size, int w, int h, std::stri
     LOG(INFO) << "device image" << name << "saved";
 }
 
+// view input images on device to help debugging
+inline void view_device_input_img(float* d_ptr, size_t size, int w, int h, std::string name)
+{
+    LOG(INFO) << "viewing device input image " << name;
+    cv::Mat img(w, h, CV_8UC3);
+    float* h_ptr
+    CUDA_CHECK(cudaMemcpy(img.data, d_ptr, size, cudaMemcpyDeviceToHost));
+    cv::imwrite(name + ".jpg", img);
+    LOG(INFO) << "device input image" << name << "saved";
+}
+
 #endif
