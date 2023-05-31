@@ -86,13 +86,13 @@ __global__ void warp_affine(
     pdst[2] = c2;
 }
 
-// [w, h, c] -> [c, w, h]
+// [h, w, c] -> [c, h, w]
 // 0...255 -> 0...1
-__global__ void blobFromImage(const uint8_t *d_ptr_dst, float *d_ptr_input, int w, int h, int c, int n)
+__global__ void blobFromImage(const uint8_t *d_ptr_dst, float *d_ptr_input, int img_num, int w, int h, int c, int n)
 {
     // block: 20x20x1
     // grid: 32x32x3
-    __shared__ float shared_memory[32][32][3];
+    // __shared__ float shared_memory[32][32][3];
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -101,10 +101,14 @@ __global__ void blobFromImage(const uint8_t *d_ptr_dst, float *d_ptr_input, int 
     if (x < w && y < h && z < c)
     {
         int in_index = z + y * c + x * c * h;
-        shared_memory[threadIdx.x][threadIdx.y][threadIdx.z] = d_ptr_dst[in_index];
+        int new_x = z;
+        int new_y = x;
+        int new_z = y;
+        int out_index = new_z + new_y * h + new_x * w * h + img_num * c * h * w;
+        d_ptr_input[out_index] = (float)d_ptr_dst[in_index] / 255.0f;
     }
 
-    __syncthreads();
+    // __syncthreads();
 
     // xyz -> zxy
     // e.g. (114, 514, 3) -> (3, 114, 514)
@@ -112,15 +116,15 @@ __global__ void blobFromImage(const uint8_t *d_ptr_dst, float *d_ptr_input, int 
     // y = 514 = 20 * 25 + 14, threadIdx.y = 14, blockIdx.y = 25
     // z = 3, threadIdx.z = 3
     
-    int new_x = y;
-    int new_y = z;
-    int new_z = x;
+    // int new_x = z;
+    // int new_y = x;
+    // int new_z = y;
 
-    if (new_x < c && new_y < w && new_z < h)
-    {
-        int out_index = new_z + new_y * h + new_x * w * h;
-        d_ptr_input[out_index] = shared_memory[threadIdx.x][threadIdx.y][threadIdx.z] / 255.0f;
-    }
+    // if (new_x < c && new_y < w && new_z < h)
+    // {
+    //     int out_index = new_z + new_y * h + new_x * w * h + img_num * c * h * w;
+    //     d_ptr_input[out_index] = shared_memory[threadIdx.x][threadIdx.y][threadIdx.z] / 255.0f;
+    // }
 }
 
 void Detect::preprocess(std::vector<cv::Mat> &images)
@@ -171,10 +175,13 @@ void Detect::preprocess(std::vector<cv::Mat> &images)
                   << block2.x << "x" << block2.y << "x" << block2.z << " threads";
 
         // TODO: fix bug here
+        // TODO: flip the channel order
         blobFromImage<<<grid2, block2, 0, nullptr>>>(
-            d_ptr_dst, (float*)this->device_ptrs[0] + img_num * dst_w * dst_h * 3, 
+            d_ptr_dst, (float*)this->device_ptrs[0], img_num, 
             dst_w, dst_h, 3, batch_size
         );
         img_num++;
     }
+    view_device_batch_img((float*)this->device_ptrs[0], batch_size, 3, this->input_width, this->input_height, "input");
+    LOG_ASSERT(0) << "stop here";
 }

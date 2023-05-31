@@ -33,7 +33,7 @@ do                                                    \
 // a is a pointer to the array, i, j, k, l are the index of the array, n, c, h, w are the batch size, channel, height and width of the array
 // the array is stored in the format of NCHW
 #define GET4(a, i, j, k, l, n, c, h, w) \
-    a[(i) * (n * c * h) + (j) * (c * h) + (k) * (h) + (l)]
+    a[(i) * (c * h * w) + (j) * (h * w) + (k) * (w) + (l)]
 
 #define ARGMAX3(a, b, c) ((a) > (b) ? ((a) > (c) ? 0 : 2) : ((b) > (c) ? 1 : 2))
 #define ARGMAX2(a, b) ((a) > (b) ? 0 : 1)
@@ -95,15 +95,49 @@ inline void view_device_img(uint8_t* d_ptr, size_t size, int w, int h, std::stri
     LOG(INFO) << "device image" << name << "saved";
 }
 
-// view input images on device to help debugging
+// view letterbox images after warpaffine on device to help debugging
 inline void view_device_input_img(float* d_ptr, size_t size, int w, int h, std::string name)
 {
     LOG(INFO) << "viewing device input image " << name;
     cv::Mat img(w, h, CV_8UC3);
-    float* h_ptr
     CUDA_CHECK(cudaMemcpy(img.data, d_ptr, size, cudaMemcpyDeviceToHost));
     cv::imwrite(name + ".jpg", img);
     LOG(INFO) << "device input image" << name << "saved";
+}
+
+// view batch images on device to help debugging
+inline void view_device_batch_img(float* d_ptr, int n, int c, int w, int h, std::string name)
+{
+    LOG(INFO) << "viewing device batch image " << name;
+    cv::Mat img(h * 2, w * 4, CV_8UC3);
+    LOG(INFO) << "img size: " << img.size();
+    size_t size = n * c * w * h * sizeof(float);
+    float* h_ptr = new float[size];
+    CUDA_CHECK(cudaMemcpy(h_ptr, d_ptr, size, cudaMemcpyDeviceToHost));
+    const int loc[8][2] = {{0, 0}, {0, 1}, {0, 2}, {0, 3}, {1, 0}, {1, 1}, {1, 2}, {1, 3}};
+    float val_sum = 0;
+    for (int i = 0; i < n; i++)
+    {
+        LOG(INFO) << "batch: " << i << ", location: " << loc[i][0] * w << ", " << loc[i][1] * h;
+        for (int j = 0; j < c; j++)
+        {
+            for (int k = 0; k < h; k++)
+            {
+                for (int l = 0; l < w; l++)
+                {
+                    int ox = loc[i][0] * h + k;
+                    int oy = loc[i][1] * w + l;
+                    val_sum += GET4(h_ptr, i, j, k, l, n, c, h, w);
+                    float dn = clamp(GET4(h_ptr, i, j, k, l, n, c, h, w) * 255, 0, 255);
+                    LOG(INFO) << "ox: " << ox << ", oy: " << oy << ", dn: " << dn << ", sum: " << val_sum;
+                    img.at<cv::Vec3b>(ox, oy)[j] = dn;
+                }
+            }
+        }
+    }
+    LOG(INFO) << "val_sum: " << val_sum;
+    cv::imwrite(name + ".jpg", img);
+    LOG(INFO) << "device batch image" << name << "saved";
 }
 
 #endif
