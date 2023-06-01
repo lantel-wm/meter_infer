@@ -15,6 +15,7 @@ struct DetObject
     int batch_id;
     int class_id;
     float conf;
+    float reading;
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
 };
 
@@ -106,7 +107,7 @@ class Detect
         void copyFromMat(cv::Mat &nchw);
         void infer();
 
-        void nonMaxSuppression(std::vector<std::vector<DetObject> >  &det_objs); // non-maximum suppression
+        void nonMaxSuppression(std::vector<std::vector<DetObject> >  &det_objs, int batch_size); // non-maximum suppression
         float iou(const cv::Rect rect1, const cv::Rect rect2);    // calculate the IOU of two rectangles
 
     public:

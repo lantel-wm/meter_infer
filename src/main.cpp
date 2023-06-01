@@ -69,8 +69,8 @@ int main(int argc, char **argv)
         {
             for (auto &obj : det_objs[i])
             {
-                // cv::Mat crop = frame(obj.rect);
-                // cv::imwrite("crop" + std::to_string(obj.class_id) + ".png", crop);    
+                cv::Mat crop = frames[i](obj.rect);
+                cv::imwrite("crop" + std::to_string(obj.class_id) + ".png", crop);    
                 cv::rectangle(frames[i], obj.rect, cv::Scalar(0, 0, 255), 2);
                 cv::putText(frames[i], obj.name, cv::Point(obj.rect.x, obj.rect.y), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
             }

@@ -6,17 +6,36 @@
 #include "meter_reader.hpp"
 #include "config.hpp"
 
-meterReader::meterReader(cv::Mat &image)
+meterReader::meterReader(std::string const trt_model_det, std::string const trt_model_seg)
 {
-    this->image = image;
+    LOG(INFO) << "loading detector";
+    this->detect = Detect(trt_model_det);
+    this->detect.engineInfo();
+    LOG(INFO) << "detector loaded";
+
+    // LOG(INFO) << "loading segmenter";
+    // this->segment = Segment(trt_model_seg);
+    // this->segment.engineInfo();
+    // LOG(INFO) << "segmenter loaded";
+
 }
 
 meterReader::~meterReader()
 {
 }
 
-void meterReader::crop_meters()
+void meterReader::crop_meters(std::vector<frame_info> &frames, std::vector<std::vector<DetObject> > &det_objs)
 {
+    int batch_size = frames.size();
+    for (int i = 0; i < batch_size; i++)
+    {
+        for (auto &obj : det_objs[i])
+        {
+            cv::Mat crop = frames[i].frame(obj.rect);
+            if 
+            cv::imwrite("crop" + std::to_string(obj.class_id) + ".png", crop);    
+        }
+    }
 }
 
 void meterReader::read_meters()

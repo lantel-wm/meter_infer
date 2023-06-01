@@ -251,10 +251,10 @@ float Detect::iou(const cv::Rect rect1, const cv::Rect rect2)
     return intersection_area / union_;
 }
 
-void Detect::nonMaxSuppression(std::vector<std::vector<DetObject> >  &det_objs)
+void Detect::nonMaxSuppression(std::vector<std::vector<DetObject> >  &det_objs, int batch_size)
 {
 
-    for (int l = 0; l < det_objs.size(); l++)
+    for (int l = 0; l < batch_size; l++)
     {
         // sort the results by confidence in descending order
         std::sort(det_objs[l].begin(), det_objs[l].end(), [](DetObject &a, DetObject &b) { return a.conf > b.conf; });
@@ -346,11 +346,17 @@ void Detect::postprocess(std::vector<std::vector<DetObject> >  &det_objs)
         }
     }
     
-    LOG(INFO) << "detected objects: " << det_objs.size();
+    for (int i = 0; i < batch_size; i++)
+    {
+        LOG(INFO) << "detected objects in batch " << i << " before nms: " << det_objs[i].size();
+    }
     
-    this->nonMaxSuppression(det_objs);
+    this->nonMaxSuppression(det_objs, batch_size);
 
-    LOG(INFO) << "objects after nms: " << det_objs.size();
+    for (int i = 0; i < batch_size; i++)
+    {
+        LOG(INFO) << "detected objects in batch " << i << " after nms: " << det_objs[i].size();
+    }
 }
 
 void Detect::makePipe(bool warmup)

@@ -6,18 +6,8 @@
 #include <vector>
 
 #include "config.hpp"
-
-struct Meter
-{
-    std::string name; // name of the meter. e.g. pressure, water_level, etc.
-    std::string unit; // unit of the reading. e.g. kPa, percent, etc.
-    int id; // id of the meter
-    float value; // value of the reading
-    cv::Mat image; // image of the meter    
-    cv::Point upper_left; // upperleft point of the meter
-    cv::Point lower_right; // lowerright point of the meter
-};
-
+#include "detect.hpp"
+#include "stream_to_img.hpp"
 
 class meterReader
 /*
@@ -31,10 +21,11 @@ class meterReader
 {
     private:
         cv::Mat image; // current frame of the camera
-        std::vector<Meter> meters; // meters in the frame
+        std::vector<DetObject> det_objs; // detected objects
+        Detect detect; // detector
 
     public:
-        meterReader(cv::Mat &image);
+        meterReader(std::string const trt_model_det, std::string const trt_model_seg);
         ~meterReader();
 
         void crop_meters(); // input this->image, output this->meters
