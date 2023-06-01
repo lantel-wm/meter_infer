@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <opencv2/opencv.hpp>
 
 extern const std::string ENGINE_PATH;
 extern const std::string IMAGE_PATH;
@@ -40,6 +41,6 @@ extern const int METER;
 extern const int WATER;
 extern const int LEVEL;
 
-
+extern const std::vector<cv::Scalar> COLORS;
 
 #endif

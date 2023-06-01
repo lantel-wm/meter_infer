@@ -1,5 +1,3 @@
-#include <opencv2/core/types.hpp>
-#include <opencv2/imgcodecs.hpp>
 #include <opencv2/opencv.hpp>
 #include <NvInfer.h>
 #include <algorithm>
@@ -251,25 +249,26 @@ float Detect::iou(const cv::Rect rect1, const cv::Rect rect2)
     return intersection_area / union_;
 }
 
-void Detect::nonMaxSuppression(std::vector<std::vector<DetObject> >  &det_objs, int batch_size)
+void Detect::nonMaxSuppression(std::vector<frameInfo> &images, int batch_size)
 {
 
     for (int l = 0; l < batch_size; l++)
     {
         // sort the results by confidence in descending order
-        std::sort(det_objs[l].begin(), det_objs[l].end(), [](DetObject &a, DetObject &b) { return a.conf > b.conf; });
+        std::vector<DetObject> det_objs = images[l].det_objs;
+        std::sort(det_objs.begin(), det_objs.end(), [](DetObject &a, DetObject &b) { return a.conf > b.conf; });
 
-        DUMP_OBJ_INFO(det_objs[l]);
-        std::vector<bool> keep(det_objs[l].size(), true);
-        for (int i = 0; i < det_objs[l].size(); i++)
+        DUMP_OBJ_INFO(det_objs);
+        std::vector<bool> keep(det_objs.size(), true);
+        for (int i = 0; i < det_objs.size(); i++)
         {
             if (keep[i])
             {
-                for (int j = i + 1; j < det_objs[l].size(); j++)
+                for (int j = i + 1; j < det_objs.size(); j++)
                 {
                     if (keep[j])
                     {
-                        if (this->iou(det_objs[l][i].rect, det_objs[l][j].rect) > NMS_THRESH)
+                        if (this->iou(det_objs[i].rect, det_objs[j].rect) > NMS_THRESH)
                         {
                             keep[j] = false;
                         }
@@ -278,21 +277,36 @@ void Detect::nonMaxSuppression(std::vector<std::vector<DetObject> >  &det_objs, 
             }
         }
 
-        for (int i = 0, j = 0; i < det_objs[l].size(); i++, j++)
+        std::vector<DetObject> det_objs_nms; 
+
+        for (int i = 0; i < keep.size(); i++)
         {
-            if (!keep[j])
+            LOG(INFO) << "keep[" << i << "]: " << keep[i];
+            if (keep[i])
             {
-                det_objs[l].erase(det_objs[l].begin() + i);
-                i--;
+                det_objs_nms.push_back(det_objs[i]);
             }
         }
+
+        DUMP_OBJ_INFO(det_objs_nms);
+
+        images[l].det_objs = det_objs_nms;
+
+
+        // for (int i = 0, j = 0; i < det_objs.size(); i++, j++)
+        // {
+        //     if (!keep[j])
+        //     {
+        //         det_objs.erase(det_objs.begin() + i);
+        //         i--;
+        //     }
+        // }
     }
     LOG(INFO) << "non_max_suppresion done";
 }
 
-void Detect::postprocess(std::vector<std::vector<DetObject> >  &det_objs)
+void Detect::postprocess(std::vector<frameInfo> &images)
 {
-    det_objs.clear();
     int batch_size = this->output_bindings[0].dims.d[0];
 	int det_length = this->output_bindings[0].dims.d[1];
     int num_dets = this->output_bindings[0].dims.d[2];
@@ -342,20 +356,20 @@ void Detect::postprocess(std::vector<std::vector<DetObject> >  &det_objs)
             det_obj.batch_id = i;
             det_obj.class_id = class_id;
             det_obj.name = CLASS_NAMES[class_id];
-            det_objs[i].push_back(det_obj);
+            images[i].det_objs.push_back(det_obj);
         }
     }
     
     for (int i = 0; i < batch_size; i++)
     {
-        LOG(INFO) << "detected objects in batch " << i << " before nms: " << det_objs[i].size();
+        LOG(INFO) << "detected objects in batch " << i << " before nms: " << images[i].det_objs.size();
     }
     
-    this->nonMaxSuppression(det_objs, batch_size);
+    this->nonMaxSuppression(images, batch_size);
 
     for (int i = 0; i < batch_size; i++)
     {
-        LOG(INFO) << "detected objects in batch " << i << " after nms: " << det_objs[i].size();
+        LOG(INFO) << "detected objects in batch " << i << " after nms: " << images[i].det_objs.size();
     }
 }
 
@@ -460,7 +474,7 @@ void Detect::copyFromMat(cv::Mat& nchw)
 }
 
 // run detection on the image
-void Detect::detect(std::vector<cv::Mat> &images, std::vector<std::vector<DetObject> >  &det_objs)
+void Detect::detect(std::vector<frameInfo> &images)
 {
     // preprocess input
     cv::Mat nchw;
@@ -484,7 +498,7 @@ void Detect::detect(std::vector<cv::Mat> &images, std::vector<std::vector<DetObj
 
     // postprocess output
     t1 = clock();
-    this->postprocess(det_objs);
+    this->postprocess(images);
     t2 = clock();
     LOG(WARNING) << "postprocess done in " << (t2 - t1) / 1000.0 << " ms";
 }

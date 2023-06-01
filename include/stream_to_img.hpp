@@ -3,18 +3,10 @@
 
 #include <opencv2/opencv.hpp>
 #include <string>
-#include <detect.hpp>
 
 #define IMAGE 0
 #define VIDEO 1
 #define RTSP 2
-
-struct frame_info
-{
-    cv::Mat frame;
-    std::string info;
-    std::vector<DetObject> det_objects;
-};
 
 class stream_to_img
 {

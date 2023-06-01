@@ -7,17 +7,8 @@
 
 #include "config.hpp"
 #include "detect.hpp"
-#include "stream_to_img.hpp"
 
 class meterReader
-/*
-    * This class is used to read the meter in the image.
-    * It will read the image from the source and return the readings of the meters.
-    * The source can be a image, a video or a rstp stream.
-    * The readings will be stored in a vector of Reading.
-    * The meters will be stored in a vector of Meter.
-*/
-
 {
     private:
         cv::Mat image; // current frame of the camera
@@ -28,13 +19,10 @@ class meterReader
         meterReader(std::string const trt_model_det, std::string const trt_model_seg);
         ~meterReader();
 
-        void crop_meters(); // input this->image, output this->meters
-        void read_meters(); // input this->meters, output this->readings
-
-        std::vector<Meter> get_meters(); // return all the meters
-        Meter get_meter(int id); // return the meter with the id
-        Meter get_meter(std::string name); // return the meter with the name
-
+        void read(std::vector<frameInfo> &frames);
+        void crop_meters(std::vector<frameInfo> &frames);
+        void read_meter(); // input this->meters, output this->readings
+        void draw_boxes(std::vector<frameInfo> &images); // draw the bounding box of the detected objects
 };
 
 #endif

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "NvInfer.h"
+#include "stream_to_img.hpp"
 
 using namespace nvinfer1;
 
@@ -17,6 +18,15 @@ struct DetObject
     float conf;
     float reading;
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
+    std::string class_name;
+    std::string meter_reading;
+};
+
+struct frameInfo
+{
+    cv::Mat frame;
+    std::string info;
+    std::vector<DetObject> det_objs;
 };
 
 // Store binding information.
@@ -101,19 +111,19 @@ class Detect
         std::vector<void *> device_ptrs;
 
         void letterbox(const cv::Mat &image, cv::Mat &out); // make letterbox for the image
-        void preprocess(std::vector<cv::Mat> &images);      // preprocess the image
-        void postprocess(std::vector<std::vector<DetObject> >  &det_objs); // postprocess the image
+        void preprocess(std::vector<frameInfo> &images);      // preprocess the image
+        void postprocess(std::vector<frameInfo> &images); // postprocess the image
         void makePipe(bool warmup);
         void copyFromMat(cv::Mat &nchw);
         void infer();
 
-        void nonMaxSuppression(std::vector<std::vector<DetObject> >  &det_objs, int batch_size); // non-maximum suppression
+        void nonMaxSuppression(std::vector<frameInfo> &images, int batch_size); // non-maximum suppression
         float iou(const cv::Rect rect1, const cv::Rect rect2);    // calculate the IOU of two rectangles
 
     public:
         Detect(std::string const &engine_path);                       // load the engine
         ~Detect();                                                    // unload the engine
-        void detect(std::vector<cv::Mat> &images, std::vector<std::vector<DetObject> >  &results); // detect the image
+        void detect(std::vector<frameInfo> &images); // detect the image
         void engineInfo();                                            // print the engine information
 };
 

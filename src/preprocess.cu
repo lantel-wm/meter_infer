@@ -3,6 +3,7 @@
 
 #include "glog/logging.h"
 #include "detect.hpp"
+#include "stream_to_img.hpp"
 #include "config.hpp"
 #include "common.hpp"
 
@@ -111,7 +112,7 @@ __global__ void blobFromImage(uint8_t* input, float* output, int h, int w, int c
 }
 
 
-void Detect::preprocess(std::vector<cv::Mat> &images)
+void Detect::preprocess(std::vector<frameInfo> &images)
 {
     int batch_size = images.size();
     LOG_ASSERT(batch_size) << "images is empty";
@@ -119,8 +120,8 @@ void Detect::preprocess(std::vector<cv::Mat> &images)
     int img_num = 0;
     uint8_t *d_ptr_src;                                    // device pointer for src image
     uint8_t *d_ptr_dst;                                    // device pointer for dst image
-    int src_w = images[0].cols;                                  // src image width
-    int src_h = images[1].rows;                                  // src image height
+    int src_w = images[0].frame.cols;                                  // src image width
+    int src_h = images[1].frame.rows;                                  // src image height
     int dst_w = this->input_width;                         // dst image width
     int dst_h = this->input_height;                        // dst image height
     size_t src_size = src_w * src_h * 3 * sizeof(uint8_t); // src image size
@@ -132,7 +133,7 @@ void Detect::preprocess(std::vector<cv::Mat> &images)
     // copy a batch of src images to device
     for (auto &src : images)
     {
-        CUDA_CHECK(cudaMemcpy(d_ptr_src + img_num * src_w * src_h * 3, src.data, src_size, cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(d_ptr_src + img_num * src_w * src_h * 3, src.frame.data, src_size, cudaMemcpyHostToDevice));
         img_num++;
     }
 

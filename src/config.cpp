@@ -44,3 +44,10 @@ const int WARMUP_TIME = 10;
 const int METER = 0; // pressure meter
 const int WATER = 1; // water level gauge
 const int LEVEL = 2; // water level
+
+// colors for drawing boxes
+const std::vector<cv::Scalar> COLORS = {
+    cv::Scalar(201, 207, 142),
+    cv::Scalar(122, 190, 255),
+    cv::Scalar(111, 127, 250)
+};
