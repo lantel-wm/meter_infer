@@ -7,6 +7,8 @@
 
 #include "glog/logging.h"
 
+using namespace nvinfer1;
+
 #define CUDA_CHECK(call)                              \
 do                                                    \
 {                                                     \
@@ -49,6 +51,7 @@ do                                                    \
     { \
         LOG(INFO) << a[i]; \
     }
+
 
 // set val to min if val < min, set val to max if val > max
 inline static float clamp(float val, float min, float max)

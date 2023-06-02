@@ -1,23 +1,15 @@
 #include <ctime>
 #include <iostream>
-#include <opencv2/flann/defines.h>
-#include <opencv2/imgcodecs.hpp>
 #include <time.h>
-#include <vector>
-#include <string>
 #include <thread>
-#include <vector>
 #include <mutex>
 #include <queue>
 #include <condition_variable>
 
-#include <opencv2/opencv.hpp>
-
 #include "common.hpp"
-#include "glog/logging.h"
 #include "stream_to_img.hpp"
 #include "meter_reader.hpp"
-#include "detect.hpp"
+#include "yolo.hpp"
 #include "config.hpp"
 
 using namespace google;
@@ -30,6 +22,10 @@ int main(int argc, char **argv)
 
     LOG(INFO) << "program started";
 
+    // std::vector<CropInfo> crops;
+    // Segment segment("yolov8s-seg_batch8.trt");
+
+
     meterReader reader("yolov8n_batch8.trt", "233");
 
     stream_to_img stream(IMAGE_PATH + "60.png");
@@ -38,7 +34,7 @@ int main(int argc, char **argv)
 
     while (stream.is_open())
     {
-        std::vector<frameInfo> frames; // stores 8 frames
+        std::vector<FrameInfo> frames; // stores 8 frames
         // std::vector<std::vector<DetObject> > det_objs_batch(8); // stores 8 det results
 
         stream.get_frame(frame);
@@ -48,9 +44,9 @@ int main(int argc, char **argv)
             continue;
         }
 
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 1; i++)
         {
-            frameInfo frame_info;
+            FrameInfo frame_info;
             frame_info.frame = frame;
             frames.push_back(frame_info);        
         }

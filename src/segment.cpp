@@ -1,5 +1,3 @@
-#include <opencv2/opencv.hpp>
-#include <NvInfer.h>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -9,20 +7,9 @@
 #include "glog/logging.h"
 #include "config.hpp"
 #include "common.hpp"
-#include "segment.hpp"
+#include "yolo.hpp"
 
-using namespace nvinfer1;
-
-class Logger : public ILogger
-{
-    void log(Severity severity, const char *msg) noexcept override
-    {
-        // suppress info-level messages
-        if (severity <= Severity::kWARNING)
-            // std::cout << msg << std::endl;
-            LOG(WARNING) << msg;
-    }
-} glogger;
+Logger glogger_seg;
 
 // Constructor for the Segment class.
 // Sets the input size to 640x640.
@@ -59,7 +46,7 @@ Segment::Segment(std::string const &engine_filename)
     this->input_height = IN_HEIGHT;
 
     // load engine
-    this->runtime = createInferRuntime(glogger);
+    this->runtime = createInferRuntime(glogger_seg);
     LOG_ASSERT(this->runtime != nullptr) << "Failed to create infer runtime";
 
     // deserialize the engine file
@@ -70,7 +57,7 @@ Segment::Segment(std::string const &engine_filename)
     this->context = this->engine->createExecutionContext();
     LOG_ASSERT(this->context != nullptr) << "Failed to create execution context";
 
-    LOG_ASSERT(this->engine->getNbBindings() == 2) << "Invalid segmention engine file: " << this->engine_path;
+    LOG_ASSERT(this->engine->getNbBindings() == 3) << "Invalid segmention engine file: " << this->engine_path;
 
     LOG(INFO) << "Successfully loaded engine file " << engine_path;
 
@@ -249,13 +236,13 @@ float Segment::iou(const cv::Rect rect1, const cv::Rect rect2)
     return intersection_area / union_;
 }
 
-void Segment::nonMaxSuppression(std::vector<frameInfo> &images, int batch_size)
+void Segment::nonMaxSuppression(std::vector<CropInfo> &crops, int batch_size)
 {
 
     for (int l = 0; l < batch_size; l++)
     {
         // sort the results by confidence in descending order
-        std::vector<DetObject> det_objs = images[l].det_objs;
+        std::vector<DetObject> det_objs = crops[l].det_objs;
         std::sort(det_objs.begin(), det_objs.end(), [](DetObject &a, DetObject &b) { return a.conf > b.conf; });
 
         DUMP_OBJ_INFO(det_objs);
@@ -290,7 +277,7 @@ void Segment::nonMaxSuppression(std::vector<frameInfo> &images, int batch_size)
 
         DUMP_OBJ_INFO(det_objs_nms);
 
-        images[l].det_objs = det_objs_nms;
+        crops[l].det_objs = det_objs_nms;
 
 
         // for (int i = 0, j = 0; i < det_objs.size(); i++, j++)
@@ -305,19 +292,13 @@ void Segment::nonMaxSuppression(std::vector<frameInfo> &images, int batch_size)
     LOG(INFO) << "non_max_suppresion done";
 }
 
-void Segment::postprocess(std::vector<frameInfo> &images)
+void Segment::postprocess(std::vector<CropInfo> &crops)
 {
     int batch_size = this->output_bindings[0].dims.d[0];
 	int det_length = this->output_bindings[0].dims.d[1];
     int num_dets = this->output_bindings[0].dims.d[2];
     float* output = static_cast<float*>(this->host_ptrs[0]);
     LOG(INFO) << "batch_size: " << batch_size << ", det_length: " << det_length << ", num_dets: " << num_dets;
-
-    // M = [[scale, 0, delta_x], [0, scale, delta_y]]
-	float dw = this->affine_matrix.mat[2];
-	float dh = this->affine_matrix.mat[5];
-	float ratio = this->affine_matrix.inv_mat[0];
-    LOG(INFO) << "dw: " << dw << ", dh: " << dh << ", ratio: " << ratio;
 
     for (int i = 0; i < batch_size; i++)
     {
@@ -338,15 +319,10 @@ void Segment::postprocess(std::vector<frameInfo> &images)
 
             LOG(INFO) << "x: " << x << ", y: " << y << ", w: " << w << ", h: " << h;
 
-            float x1 = (x - w / 2.f) - dw;
-            float y1 = (y - h / 2.f) - dh;
-            float x2 = (x + w / 2.f) - dw;
-            float y2 = (y + h / 2.f) - dh;
-
-            x1 = clamp(x1 * ratio, 0.f, this->image_width);
-            y1 = clamp(y1 * ratio, 0.f, this->image_height);
-            x2 = clamp(x2 * ratio, 0.f, this->image_width);
-            y2 = clamp(y2 * ratio, 0.f, this->image_height);
+            float x1 = x - w / 2.f;
+            float y1 = y - h / 2.f;
+            float x2 = x + w / 2.f;
+            float y2 = y + h / 2.f;
 
             LOG(INFO) << "x1: " << x1 << ", y1: " << y1 << ", x2: " << x2 << ", y2: " << y2;
 
@@ -356,20 +332,20 @@ void Segment::postprocess(std::vector<frameInfo> &images)
             det_obj.batch_id = i;
             det_obj.class_id = class_id;
             det_obj.name = CLASS_NAMES[class_id];
-            images[i].det_objs.push_back(det_obj);
+            crops[i].det_objs.push_back(det_obj);
         }
     }
     
     for (int i = 0; i < batch_size; i++)
     {
-        LOG(INFO) << "segmented objects in batch " << i << " before nms: " << images[i].det_objs.size();
+        LOG(INFO) << "segmented objects in batch " << i << " before nms: " << crops[i].det_objs.size();
     }
     
-    this->nonMaxSuppression(images, batch_size);
+    this->nonMaxSuppression(crops, batch_size);
 
     for (int i = 0; i < batch_size; i++)
     {
-        LOG(INFO) << "segmented objects in batch " << i << " after nms: " << images[i].det_objs.size();
+        LOG(INFO) << "segmented objects in batch " << i << " after nms: " << crops[i].det_objs.size();
     }
 }
 
@@ -474,13 +450,12 @@ void Segment::copyFromMat(cv::Mat& nchw)
 }
 
 // run segmention on the image
-void Segment::segment(std::vector<frameInfo> &images)
+void Segment::segment(std::vector<CropInfo> &crops)
 {
     // preprocess input
-    cv::Mat nchw;
     auto t1 = clock();
     // this->letterbox(image, nchw);
-    this->preprocess(images);
+    this->preprocess(crops);
     auto t2 = clock();
     LOG(WARNING) << "image processed in " << (t2 - t1) / 1000.0 << " ms";
 
@@ -498,7 +473,7 @@ void Segment::segment(std::vector<frameInfo> &images)
 
     // postprocess output
     t1 = clock();
-    this->postprocess(images);
+    this->postprocess(crops);
     t2 = clock();
     LOG(WARNING) << "postprocess done in " << (t2 - t1) / 1000.0 << " ms";
 }

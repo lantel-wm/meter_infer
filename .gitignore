@@ -6,8 +6,6 @@ data/videos/*
 weights/*
 engines/*
 logs/*
-notes/*
-
 # vscode ================================
 .vscode/*
 !.vscode/settings.json

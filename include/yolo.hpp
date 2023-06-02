@@ -1,13 +1,23 @@
-#ifndef _DETECT_HPP_
-#define _DETECT_HPP_
+#ifndef _YOLO_HPP_
+#define _YOLO_HPP_
 
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
 #include "NvInfer.h"
+#include "common.hpp"
 #include "stream_to_img.hpp"
 
 using namespace nvinfer1;
+
+// Store binding information.
+struct Binding
+{
+    size_t size = 1;
+    size_t dsize = 1;
+    nvinfer1::Dims dims;
+    std::string name;
+};
 
 // Store detection results.
 struct DetObject
@@ -22,21 +32,35 @@ struct DetObject
     std::string meter_reading;
 };
 
-struct frameInfo
+struct FrameInfo
 {
     cv::Mat frame;
     std::string info;
     std::vector<DetObject> det_objs;
 };
 
-// Store binding information.
-struct Binding
+struct CropInfo
 {
-    size_t size = 1;
-    size_t dsize = 1;
-    nvinfer1::Dims dims;
-    std::string name;
+    cv::Mat crop;
+    cv::Mat mask_pointer;
+    cv::Mat mask_scale;
+    int batch_id;
+    int class_id;
+    std::vector<DetObject> det_objs;
 };
+
+// logger used in TensorRT
+class Logger : public ILogger
+{
+    void log(Severity severity, const char *msg) noexcept override
+    {
+        // suppress info-level messages
+        if (severity <= Severity::kWARNING)
+            // std::cout << msg << std::endl;
+            LOG(WARNING) << msg;
+    }
+};
+
 
 // Store affine transformation matrix.
 struct AffineMatrix
@@ -111,19 +135,58 @@ class Detect
         std::vector<void *> device_ptrs;
 
         void letterbox(const cv::Mat &image, cv::Mat &out); // make letterbox for the image
-        void preprocess(std::vector<frameInfo> &images);      // preprocess the image
-        void postprocess(std::vector<frameInfo> &images); // postprocess the image
+        void preprocess(std::vector<FrameInfo> &images);      // preprocess the image
+        void postprocess(std::vector<FrameInfo> &images); // postprocess the image
         void makePipe(bool warmup);
         void copyFromMat(cv::Mat &nchw);
         void infer();
 
-        void nonMaxSuppression(std::vector<frameInfo> &images, int batch_size); // non-maximum suppression
+        void nonMaxSuppression(std::vector<FrameInfo> &images, int batch_size); // non-maximum suppression
         float iou(const cv::Rect rect1, const cv::Rect rect2);    // calculate the IOU of two rectangles
 
     public:
         Detect(std::string const &engine_path);                       // load the engine
         ~Detect();                                                    // unload the engine
-        void detect(std::vector<frameInfo> &images); // detect the image
+        void detect(std::vector<FrameInfo> &images); // detect the image
+        void engineInfo();                                            // print the engine information
+};
+
+class Segment
+{
+    private:
+        int input_width;  // input width
+        int input_height; // input height
+        int image_width;  // output width
+        int image_height; // output height
+        cv::Mat M;
+        cv::Mat IM;
+        std::string engine_path;
+        IExecutionContext *context;
+        IRuntime *runtime;
+        ICudaEngine *engine;
+        cudaStream_t stream = nullptr;
+        int num_bindings;
+        int num_inputs = 0;
+        int num_outputs = 0;
+        std::vector<Binding> input_bindings;
+        std::vector<Binding> output_bindings;
+        std::vector<void *> host_ptrs;
+        std::vector<void *> device_ptrs;
+
+        void letterbox(const cv::Mat &image, cv::Mat &out); // make letterbox for the image
+        void preprocess(std::vector<CropInfo> &crops);      // preprocess the meter crops
+        void postprocess(std::vector<CropInfo> &crops); // postprocess the image
+        void makePipe(bool warmup);
+        void copyFromMat(cv::Mat &nchw);
+        void infer();
+
+        void nonMaxSuppression(std::vector<CropInfo> &crops, int batch_size); // non-maximum suppression
+        float iou(const cv::Rect rect1, const cv::Rect rect2);    // calculate the IOU of two rectangles
+
+    public:
+        Segment(std::string const &engine_path);                       // load the engine
+        ~Segment();                                                    // unload the engine
+        void segment(std::vector<CropInfo> &crops); // detect the image
         void engineInfo();                                            // print the engine information
 };
 

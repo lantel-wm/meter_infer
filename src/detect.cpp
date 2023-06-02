@@ -1,5 +1,4 @@
 #include <opencv2/opencv.hpp>
-#include <NvInfer.h>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -9,21 +8,9 @@
 #include "glog/logging.h"
 #include "config.hpp"
 #include "common.hpp"
-#include "detect.hpp"
+#include "yolo.hpp"
 
-using namespace nvinfer1;
-
-class Logger : public ILogger
-{
-    void log(Severity severity, const char *msg) noexcept override
-    {
-        // suppress info-level messages
-        if (severity <= Severity::kWARNING)
-            // std::cout << msg << std::endl;
-            LOG(WARNING) << msg;
-    }
-} glogger;
-
+Logger glogger_det;
 // Constructor for the Detect class.
 // Sets the input size to 640x640.
 // Loads the engine from the engine file.
@@ -59,7 +46,7 @@ Detect::Detect(std::string const &engine_filename)
     this->input_height = IN_HEIGHT;
 
     // load engine
-    this->runtime = createInferRuntime(glogger);
+    this->runtime = createInferRuntime(glogger_det);
     LOG_ASSERT(this->runtime != nullptr) << "Failed to create infer runtime";
 
     // deserialize the engine file
@@ -249,7 +236,7 @@ float Detect::iou(const cv::Rect rect1, const cv::Rect rect2)
     return intersection_area / union_;
 }
 
-void Detect::nonMaxSuppression(std::vector<frameInfo> &images, int batch_size)
+void Detect::nonMaxSuppression(std::vector<FrameInfo> &images, int batch_size)
 {
 
     for (int l = 0; l < batch_size; l++)
@@ -305,9 +292,9 @@ void Detect::nonMaxSuppression(std::vector<frameInfo> &images, int batch_size)
     LOG(INFO) << "non_max_suppresion done";
 }
 
-void Detect::postprocess(std::vector<frameInfo> &images)
+void Detect::postprocess(std::vector<FrameInfo> &images)
 {
-    int batch_size = this->output_bindings[0].dims.d[0];
+    int batch_size = images.size();
 	int det_length = this->output_bindings[0].dims.d[1];
     int num_dets = this->output_bindings[0].dims.d[2];
     float* output = static_cast<float*>(this->host_ptrs[0]);
@@ -474,7 +461,7 @@ void Detect::copyFromMat(cv::Mat& nchw)
 }
 
 // run detection on the image
-void Detect::detect(std::vector<frameInfo> &images)
+void Detect::detect(std::vector<FrameInfo> &images)
 {
     // preprocess input
     cv::Mat nchw;

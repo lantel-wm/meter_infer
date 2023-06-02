@@ -4,7 +4,7 @@
 
 #include "glog/logging.h"
 #include "meter_reader.hpp"
-#include "detect.hpp"
+#include "yolo.hpp"
 #include "config.hpp"
 
 meterReader::meterReader(std::string const trt_model_det, std::string const trt_model_seg)
@@ -26,13 +26,13 @@ meterReader::~meterReader()
 {
 }
 
-void meterReader::read(std::vector<frameInfo> &frames)
+void meterReader::read(std::vector<FrameInfo> &frames)
 {
     this->crop_meters(frames);
     this->draw_boxes(frames);
 }
 
-void meterReader::crop_meters(std::vector<frameInfo> &frames)
+void meterReader::crop_meters(std::vector<FrameInfo> &frames)
 {
     int batch_size = frames.size();
 
@@ -61,7 +61,7 @@ void meterReader::crop_meters(std::vector<frameInfo> &frames)
     }
 }
 
-void meterReader::draw_boxes(std::vector<frameInfo> &images)
+void meterReader::draw_boxes(std::vector<FrameInfo> &images)
 {
     for (auto &image : images)
     {

@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "glog/logging.h"
-#include "detect.hpp"
+#include "yolo.hpp"
 #include "stream_to_img.hpp"
 #include "config.hpp"
 #include "common.hpp"
@@ -25,7 +25,7 @@ __global__ void warp_affine(
     uint8_t *dst, int dst_line_size, int dst_width, int dst_height,
     uint8_t fill_value, AffineMatrix M)
 {
-    int n = blockDim.z * blockIdx.z + threadIdx.z; // img_num
+    int n = blockDim.z * blockIdx.z + threadIdx.z; // ibatch
     int offset_dst = n * dst_width * dst_height * 3;
     int offset_src = n * src_width * src_height * 3;
 
@@ -103,45 +103,47 @@ __global__ void blobFromImage(uint8_t* input, float* output, int h, int w, int c
 
     if (x < h && y < w && z < c)
     {
-        for (int img_num = 0; img_num < n; img_num++)
+        for (int ibatch = 0; ibatch < n; ibatch++)
         {
             int input_idx = x * (c * w) + y * c + (2 - z);
-            int output_idx = img_num * (w * h * c) + z * (w * h) + x * w + y;
+            int output_idx = ibatch * (w * h * c) + z * (w * h) + x * w + y;
             output[output_idx] = input[input_idx] / 255.f;
         }
     }
 }
 
 
-void Detect::preprocess(std::vector<frameInfo> &images)
+void Detect::preprocess(std::vector<FrameInfo> &images)
 {
     int batch_size = images.size();
     LOG_ASSERT(batch_size) << "images is empty";
 
-    int img_num = 0;
     uint8_t *d_ptr_src;                                    // device pointer for src image
     uint8_t *d_ptr_dst;                                    // device pointer for dst image
     int src_w = images[0].frame.cols;                                  // src image width
-    int src_h = images[1].frame.rows;                                  // src image height
+    int src_h = images[0].frame.rows;                                  // src image height
     int dst_w = this->input_width;                         // dst image width
     int dst_h = this->input_height;                        // dst image height
     size_t src_size = src_w * src_h * 3 * sizeof(uint8_t); // src image size
     size_t dst_size = batch_size * dst_w * dst_h * 3 * sizeof(uint8_t); // dst image size
 
+    LOG(INFO) << "src_w: " << src_w << ", src_h: " << src_h << ", dst_w: " << dst_w << ", dst_h: " << dst_h;
+
     CUDA_CHECK(cudaMalloc((uint8_t **)&d_ptr_src, src_size * batch_size));
     CUDA_CHECK(cudaMalloc((uint8_t **)&d_ptr_dst, dst_size));
 
     // copy a batch of src images to device
+    int ibatch = 0;
     for (auto &src : images)
     {
-        CUDA_CHECK(cudaMemcpy(d_ptr_src + img_num * src_w * src_h * 3, src.frame.data, src_size, cudaMemcpyHostToDevice));
-        img_num++;
+        CUDA_CHECK(cudaMemcpy(d_ptr_src + ibatch * src_w * src_h * 3, src.frame.data, src_size, cudaMemcpyHostToDevice));
+        ibatch++;
     }
 
     // compute affine tranformation matrix
     (this->affine_matrix).compute(cv::Size(src_w, src_h), cv::Size(dst_w, dst_h));
 
-    dim3 block1(8, 8, 8);
+    dim3 block1(8, 8, batch_size);
     dim3 grid1((dst_w + block1.x - 1) / block1.x, (dst_h + block1.y - 1) / block1.y);
 
     LOG(INFO) << "warp_affine kernel launched with "
@@ -176,4 +178,15 @@ void Detect::preprocess(std::vector<frameInfo> &images)
     // blobFromImage test code, currently no bug
     // view_device_batch_img((float*)this->device_ptrs[0], batch_size, 3, this->input_width, this->input_height, "input");
     // LOG_ASSERT(0) << "stop here";
+}
+
+void Segment::preprocess(std::vector<CropInfo> &crops)
+{
+    // int batch_size = crops.size();
+    // LOG_ASSERT(batch_size) << "crops is empty";
+
+    // int ibatch = 0;
+    // uint8_t *d_ptr_src;                                    // device pointer for src image
+    // uint8_t *d_ptr_dst;                                    // device pointer for dst image
+    // int src_w = crops[0].crop.cols;                                  // src image width
 }
