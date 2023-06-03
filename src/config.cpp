@@ -12,6 +12,7 @@ const char* OUTPUT_NAME1 = "output1";
 
 // class names
 const std::vector<std::string> CLASS_NAMES = {"meter", "water", "level"};
+const std::vector<std::string> CLASS_NAMES2 = {"pointer", "scale"};
 
 // input tensor size: [-1, 3, 640, 640]
 const int CLASS_NUM = 3;

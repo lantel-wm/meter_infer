@@ -22,8 +22,9 @@ do                                                    \
         << cudaGetErrorString(error_code);            \
 } while (0)
 
-#define GET(output, i, j, k) \
-    output[(i) * (this->output_bindings[0].dims.d[1] * this->output_bindings[0].dims.d[2]) + (j) * this->output_bindings[0].dims.d[2] + (k)]
+#define GET(output, i, j, k, d0, d1, d2) \
+    output[(i) * ((d1) * (d2)) + (j) * (d2) + (k)]
+
 
 // get value from 3D array
 // a is a pointer to the array, i, j, k are the index of the array, h, w, c are the height, width and channel of the array

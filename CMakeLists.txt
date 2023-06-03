@@ -60,5 +60,5 @@ add_executable(test ${SRC_LIST})
 # set link library
 target_link_libraries(test ${OpenCV_LIBS})
 target_link_libraries(test ${CUDA_LIBRARIES})
-target_link_libraries(test glog::glog  )
+target_link_libraries(test glog::glog)
 target_link_libraries(test "nvinfer" "nvinfer_plugin")

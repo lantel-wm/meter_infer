@@ -58,10 +58,30 @@ dir tree:
 
     trtexec config:
     ~~~
-    trtexec --onnx=weights/yolov8n_dynamic.onnx  --saveEngine=yolov8n_int8.trt --minShapes=images:1x3x640x640 --optShapes=images:8x3x640x640 --maxShapes=images:8x3x640x640 --int8 
+    trtexec --onnx=weights/yolov8n_dynamic.onnx  --saveEngine=yolov8n_batch8.trt --minShapes=images:1x3x640x640 --optShapes=images:8x3x640x640 --maxShapes=images:8x3x640x640    
+    trtexec --onnx=weights/yolov8s-seg_dynamic.onnx  --saveEngine=yolov8s-seg_batch8.trt --minShapes=images:1x3x640x640 --optShapes=images:8x3x640x640 --maxShapes=images:8x3x640x640
+    Average on 10 runs - GPU latency: 78.9045 ms - Host latency: 85.9525 ms (enqueue 2.52272 ms)
     ~~~
 
 - meter_reader main program (cpp)
+
+## yolov8-seg
+
+input:
+
+- images: 1x3x640x640
+
+output:
+
+- output0: 8x38x8400
+
+    8: batch size
+    38 = xc + yc + w + h + 2 class confidence + 32 mask weights
+
+- output1: 8x32x160x160
+    prototype masks
+
+multiply each mask with its corresponding mask weight and then sum all these products to get the final mask
 
 ## TODO:
 

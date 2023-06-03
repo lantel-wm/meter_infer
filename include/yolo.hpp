@@ -173,11 +173,9 @@ class Segment
         std::vector<void *> host_ptrs;
         std::vector<void *> device_ptrs;
 
-        void letterbox(const cv::Mat &image, cv::Mat &out); // make letterbox for the image
         void preprocess(std::vector<CropInfo> &crops);      // preprocess the meter crops
         void postprocess(std::vector<CropInfo> &crops); // postprocess the image
         void makePipe(bool warmup);
-        void copyFromMat(cv::Mat &nchw);
         void infer();
 
         void nonMaxSuppression(std::vector<CropInfo> &crops, int batch_size); // non-maximum suppression

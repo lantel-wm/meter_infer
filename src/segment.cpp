@@ -168,66 +168,6 @@ void Segment::engineInfo()
     LOG(INFO) << "--------------------------------------------------------------";
 }
 
-// preprocess the input image
-void Segment::letterbox(const cv::Mat& image, cv::Mat& nchw)
-{
-    // set the affine transformation matrix
-    LOG(INFO) << "making letterbox";
-    LOG(INFO) << "image size: " << image.cols << "x" << image.rows;
-    this->image_width = image.cols;
-    this->image_height = image.rows;
-
-    float scale = std::min(float(this->input_width) / image.cols, float(this->input_height) / image.rows);
-    float delta_x = (-scale * image.cols + this->input_width) / 2;
-    float delta_y = (-scale * image.rows + this->input_height) / 2;
-    LOG(INFO) << "scale: " << scale << ", delta_x: " << delta_x << ", delta_y: " << delta_y;
-
-    // M = [[scale, 0, delta_x], [0, scale, delta_y]]
-    this->M = cv::Mat::zeros(2, 3, CV_32FC1);
-    this->M.at<float>(0, 0) = scale;
-    this->M.at<float>(1, 1) = scale;
-    this->M.at<float>(0, 2) = delta_x;
-    this->M.at<float>(1, 2) = delta_y;
-    LOG(INFO) << "M: " << this->M;
-
-    // apply the affine transformation (letterbox)
-    auto t1 = clock();
-    cv::Size size(this->input_width, this->input_height);
-    cv::warpAffine(image, 
-        nchw,
-        this->M,
-        size, 
-        cv::INTER_LINEAR, 
-        cv::BORDER_CONSTANT, 
-        cv::Scalar(114, 114, 114)
-    );
-    // cv::invertAffineTransform(this->M, this->IM);
-    auto t2 = clock();
-    LOG(WARNING) << "warpAffine time: " << (t2 - t1) / 1000.0f << "ms";
-    // cv::imwrite("letterbox.png", nchw);
-
-    // blobFromImage:
-    // 1. BGR to RGB
-    // 2. /255.0, normalize to [0, 1]
-    // 3. H,W,C to C,H,W
-    t1 = clock();
-    nchw = cv::dnn::blobFromImage(
-        nchw, 
-        1.0f / 255.0f, 
-        nchw.size(), 
-        cv::Scalar(0.0f, 0.0f, 0.0f), 
-        true, 
-        false, 
-        CV_32F
-    );
-    t2 = clock();
-    LOG(WARNING) << "blobFromImage time: " << (t2 - t1) / 1000.0f << "ms";
-
-    LOG(INFO) << "input size after preprocess: "
-              << "[" << nchw.size[0] << ", " << nchw.size[1]
-              << ", " << nchw.size[2] << ", " << nchw.size[3] << "]";
-}
-
 float Segment::iou(const cv::Rect rect1, const cv::Rect rect2)
 {
     cv::Rect intersection = rect1 & rect2;
@@ -278,44 +218,47 @@ void Segment::nonMaxSuppression(std::vector<CropInfo> &crops, int batch_size)
         DUMP_OBJ_INFO(det_objs_nms);
 
         crops[l].det_objs = det_objs_nms;
-
-
-        // for (int i = 0, j = 0; i < det_objs.size(); i++, j++)
-        // {
-        //     if (!keep[j])
-        //     {
-        //         det_objs.erase(det_objs.begin() + i);
-        //         i--;
-        //     }
-        // }
     }
     LOG(INFO) << "non_max_suppresion done";
 }
 
 void Segment::postprocess(std::vector<CropInfo> &crops)
 {
-    int batch_size = this->output_bindings[0].dims.d[0];
-	int det_length = this->output_bindings[0].dims.d[1];
-    int num_dets = this->output_bindings[0].dims.d[2];
-    float* output = static_cast<float*>(this->host_ptrs[0]);
+    int batch_size, det_length, num_dets;
+    bool flag = false;
+
+    batch_size = crops.size();
+    for (auto &ob: this->output_bindings)
+    {
+        if (ob.name == "output0" && ob.dims.nbDims == 3)
+        {
+            det_length = ob.dims.d[1];
+            num_dets = ob.dims.d[2];
+            flag = true;
+        }
+    }
+    
+    LOG_ASSERT(flag) << " output binding dims is not 3";
+
+    float* output0 = static_cast<float*>(this->host_ptrs[1]);
+    float* output1 = static_cast<float*>(this->host_ptrs[0]);
     LOG(INFO) << "batch_size: " << batch_size << ", det_length: " << det_length << ", num_dets: " << num_dets;
 
     for (int i = 0; i < batch_size; i++)
     {
         for (int k = 0; k < num_dets; k++)
         {
-            // for (int j = 0; j < det_length; j++)
-            // {
-            //     LOG(INFO) << "output[" << i << "][" << j << "][" << k << "]: " << GET(output, i, j, k);
-            // }
-            int class_id = ARGMAX3(GET(output, i, 4, k), GET(output, i, 5, k), GET(output, i, 6, k));
-            float conf = GET(output, i, 4 + class_id, k);
+            int class_id = ARGMAX2(
+                GET(output0, i, 4, k, batch_size, det_length, num_dets), 
+                GET(output0, i, 5, k, batch_size, det_length, num_dets)
+                );
+            float conf = GET(output0, i, 4 + class_id, k, batch_size, det_length, num_dets);
             if (conf < CONF_THRESH) continue;
 
-            float x = GET(output, i, 0, k);
-            float y = GET(output, i, 1, k);
-            float w = GET(output, i, 2, k);
-            float h = GET(output, i, 3, k);
+            float x = GET(output0, i, 0, k, batch_size, det_length, num_dets);
+            float y = GET(output0, i, 1, k, batch_size, det_length, num_dets);
+            float w = GET(output0, i, 2, k, batch_size, det_length, num_dets);
+            float h = GET(output0, i, 3, k, batch_size, det_length, num_dets);
 
             LOG(INFO) << "x: " << x << ", y: " << y << ", w: " << w << ", h: " << h;
 
@@ -331,21 +274,24 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
             det_obj.conf = conf;
             det_obj.batch_id = i;
             det_obj.class_id = class_id;
-            det_obj.name = CLASS_NAMES[class_id];
+            det_obj.name = CLASS_NAMES2[class_id];
             crops[i].det_objs.push_back(det_obj);
         }
     }
     
     for (int i = 0; i < batch_size; i++)
     {
-        LOG(INFO) << "segmented objects in batch " << i << " before nms: " << crops[i].det_objs.size();
+        LOG(INFO) << "detected objects in batch " << i << " before nms: " << crops[i].det_objs.size();
     }
-    
+
+    auto t1 = clock();
     this->nonMaxSuppression(crops, batch_size);
+    auto t2 = clock();
+    LOG(WARNING) << "nms time: " << 1000 * (t2 - t1) * 1.0 / CLOCKS_PER_SEC << "ms";
 
     for (int i = 0; i < batch_size; i++)
     {
-        LOG(INFO) << "segmented objects in batch " << i << " after nms: " << crops[i].det_objs.size();
+        LOG(INFO) << "detected objects in batch " << i << " after nms: " << crops[i].det_objs.size();
     }
 }
 
@@ -426,27 +372,6 @@ void Segment::infer()
 
 	}
 	cudaStreamSynchronize(this->stream);
-}
-
-void Segment::copyFromMat(cv::Mat& nchw)
-{
-	this->context->setBindingDimensions(
-		0,
-		Dims
-			{
-				4,
-				{ 1, 3, this->input_height, this->input_width }
-			}
-	);
-    LOG(INFO) << "binding dimensions set";
-
-	CUDA_CHECK(cudaMemcpyAsync(
-		this->device_ptrs[0],
-		nchw.ptr<float>(),
-		nchw.total() * nchw.elemSize(),
-		cudaMemcpyHostToDevice,
-		this->stream)
-	);
 }
 
 // run segmention on the image

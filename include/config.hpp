@@ -15,6 +15,7 @@ extern const char* OUTPUT_NAME0;
 extern const char* OUTPUT_NAME1;
 
 extern const std::vector<std::string> CLASS_NAMES; 
+extern const std::vector<std::string> CLASS_NAMES2; 
 
 extern const int CLASS_NUM;
 extern const int BATCH_SIZE;

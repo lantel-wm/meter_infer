@@ -314,14 +314,18 @@ void Detect::postprocess(std::vector<FrameInfo> &images)
             // {
             //     LOG(INFO) << "output[" << i << "][" << j << "][" << k << "]: " << GET(output, i, j, k);
             // }
-            int class_id = ARGMAX3(GET(output, i, 4, k), GET(output, i, 5, k), GET(output, i, 6, k));
-            float conf = GET(output, i, 4 + class_id, k);
+            int class_id = ARGMAX3(
+                GET(output, i, 4, k, batch_size, det_length, num_dets),
+                GET(output, i, 5, k, batch_size, det_length, num_dets),
+                GET(output, i, 6, k, batch_size, det_length, num_dets)
+            );
+            float conf = GET(output, i, 4 + class_id, k, batch_size, det_length, num_dets);
             if (conf < CONF_THRESH) continue;
 
-            float x = GET(output, i, 0, k);
-            float y = GET(output, i, 1, k);
-            float w = GET(output, i, 2, k);
-            float h = GET(output, i, 3, k);
+            float x = GET(output, i, 0, k, batch_size, det_length, num_dets);
+            float y = GET(output, i, 1, k, batch_size, det_length, num_dets);
+            float w = GET(output, i, 2, k, batch_size, det_length, num_dets);
+            float h = GET(output, i, 3, k, batch_size, det_length, num_dets);
 
             LOG(INFO) << "x: " << x << ", y: " << y << ", w: " << w << ", h: " << h;
 

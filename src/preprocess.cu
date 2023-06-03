@@ -152,7 +152,7 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
 
     // do letterbox transformation on src image
     // src: [src_h, src_w, 3], dst: [dst_h, dst_w, 3]
-    warp_affine<<<grid1, block1, 0, nullptr>>>(
+    warp_affine<<<grid1, block1>>>(
         d_ptr_src, src_w * 3, src_w, src_h,
         d_ptr_dst, dst_w * 3, dst_w, dst_h,
         114, this->affine_matrix);
@@ -182,11 +182,40 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
 
 void Segment::preprocess(std::vector<CropInfo> &crops)
 {
-    // int batch_size = crops.size();
-    // LOG_ASSERT(batch_size) << "crops is empty";
+    int batch_size = crops.size();
+    LOG_ASSERT(batch_size) << "crops is empty";
 
-    // int ibatch = 0;
-    // uint8_t *d_ptr_src;                                    // device pointer for src image
-    // uint8_t *d_ptr_dst;                                    // device pointer for dst image
-    // int src_w = crops[0].crop.cols;                                  // src image width
+    uint8_t *d_ptr;
+    int w = this->input_width;
+    int h = this->input_height;
+
+    size_t size = w * h * 3 * sizeof(uint8_t);
+
+    CUDA_CHECK(cudaMalloc((uint8_t **)&d_ptr, batch_size * size));
+
+    int ibatch = 0;
+    for(auto crop_info : crops)
+    {
+        // cv::resize(crop_info.crop, crop_info.crop, cv::Size(this->input_width, this->input_height));   
+        LOG(INFO) << "crop size" << crop_info.crop.size();
+        CUDA_CHECK(cudaMemcpy(d_ptr + ibatch * w * h * 3, crop_info.crop.data, size, cudaMemcpyHostToDevice));
+        ibatch++;
+    }
+    
+    dim3 block(16, 16, 3);
+    dim3 grid((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (3 + block.z - 1) / block.z);
+
+    LOG(INFO) << "blobFromImage kernel launched with "
+                << grid.x << "x" << grid.y << "x" << grid.z << " blocks of "
+                << block.x << "x" << block.y << "x" << block.z << " threads";
+
+    blobFromImage<<<grid, block>>>(
+        d_ptr, (float*)this->device_ptrs[0], 
+        h, w, 3, batch_size
+    );
+
+    // blobFromImage test code, currently no bug
+    // view_device_batch_img((float*)this->device_ptrs[0], batch_size, 3, this->input_width, this->input_height, "input_seg");
+    // LOG_ASSERT(0) << "stop here";
+
 }
