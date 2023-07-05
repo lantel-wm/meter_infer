@@ -3,6 +3,7 @@
 
 #include <opencv2/opencv.hpp>
 #include <NvInfer.h>
+#include <vector>
 #include <string>
 
 #include "glog/logging.h"
@@ -169,5 +170,31 @@ inline void view_device_batch_img(float* d_ptr, int n, int c, int w, int h, std:
     cv::imwrite(name + ".jpg", img);
     LOG(INFO) << "device batch image" << name << "saved";
 }
+
+// view proto image of segmentation on device to help debugging
+inline void view_proto(float* d_ptr)
+{
+    int w = 160;
+    int h = 160;
+    cv::Mat img(h, w, CV_8UC3);
+
+    for (int ipro = 0; ipro < 32; ipro++)
+    {
+        float* h_ptr = new float[w * h];
+        CUDA_CHECK(cudaMemcpy(h_ptr, d_ptr + ipro * w * h, w * h * sizeof(float), cudaMemcpyDeviceToHost));
+        for (int i = 0; i < w * h; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                img.at<cv::Vec3b>(i / w, i % w)[j] = clamp(h_ptr[i] * 255, 0, 255);
+            }
+        }
+        char proto_savepath[20];
+        sprintf(proto_savepath, "./proto/proto_%d.jpg", ipro);
+        cv::imwrite(proto_savepath, img);
+    }
+}
+
+
 
 #endif

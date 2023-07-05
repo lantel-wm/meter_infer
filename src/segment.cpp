@@ -285,6 +285,8 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
     {
         LOG(INFO) << "detected objects in batch " << i << " after nms: " << crops[i].det_objs.size();
     }
+
+    processMask(crops);
 }
 
 void Segment::makePipe(bool warmup)

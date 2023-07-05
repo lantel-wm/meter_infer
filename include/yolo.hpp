@@ -29,6 +29,7 @@ struct DetObject
     float reading;
     float* mask_in;
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
+    cv::Mat mask; // 160x160 image, mask of the detected object
     std::string class_name;
     std::string meter_reading;
 };
@@ -42,9 +43,9 @@ struct FrameInfo
 
 struct CropInfo
 {
-    cv::Mat crop; // 512x512
-    cv::Mat mask_pointer; // 512x512
-    cv::Mat mask_scale; // 512x512
+    cv::Mat crop; // 640x640
+    cv::Mat mask_pointer; // 160x160
+    cv::Mat mask_scale; // 160x160
     int batch_id;
     int class_id;
     std::vector<DetObject> det_objs;

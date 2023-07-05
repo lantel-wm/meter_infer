@@ -171,7 +171,7 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
     // TODO: fix bug here
     // TODO: flip the channel order
     blobFromImage<<<grid2, block2>>>(
-        d_ptr_dst, (float*)this->device_ptrs[0], 
+        d_ptr_dst, (float*)this->device_ptrs[0],
         dst_h, dst_w, 3, batch_size
     );
 

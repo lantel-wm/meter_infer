@@ -17,7 +17,7 @@ using namespace google;
 int main(int argc, char **argv)
 {
     google::InitGoogleLogging(argv[0]);
-    FLAGS_stderrthreshold = google::WARNING;
+    FLAGS_stderrthreshold = google::INFO;
     FLAGS_log_dir = LOG_PATH;
 
     LOG(INFO) << "program started";
@@ -45,8 +45,6 @@ int main(int argc, char **argv)
         cv::imwrite("seg_det.png", det);
     }
     // LOG_ASSERT(0) << " stop here";
-
-    Segment::processMask(crops);
 
     meterReader reader("yolov8n_batch8.trt", "233");
 
