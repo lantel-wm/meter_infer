@@ -183,38 +183,26 @@ void Segment::nonMaxSuppression(std::vector<CropInfo> &crops, int batch_size)
     {
         // sort the results by confidence in descending order
         std::vector<DetObject> det_objs = crops[l].det_objs;
+        std::vector<DetObject> det_objs_nms; 
         std::sort(det_objs.begin(), det_objs.end(), [](DetObject &a, DetObject &b) { return a.conf > b.conf; });
 
         DUMP_OBJ_INFO(det_objs);
-        std::vector<bool> keep(det_objs.size(), true);
-        for (int i = 0; i < det_objs.size(); i++)
+
+        while (det_objs.size() > 0)
         {
-            if (keep[i])
+            DetObject det_obj = det_objs[0];
+            det_objs.erase(det_objs.begin());
+            det_objs_nms.push_back(det_obj);
+
+            for (int i = 0; i < det_objs.size(); i++)
             {
-                for (int j = i + 1; j < det_objs.size(); j++)
+                if (this->iou(det_obj.rect, det_objs[i].rect) > NMS_THRESH)
                 {
-                    if (keep[j])
-                    {
-                        if (this->iou(det_objs[i].rect, det_objs[j].rect) > NMS_THRESH)
-                        {
-                            keep[j] = false;
-                        }
-                    }
+                    det_objs.erase(det_objs.begin() + i);
+                    i--;
                 }
             }
         }
-
-        std::vector<DetObject> det_objs_nms; 
-
-        for (int i = 0; i < keep.size(); i++)
-        {
-            LOG(INFO) << "keep[" << i << "]: " << keep[i];
-            if (keep[i])
-            {
-                det_objs_nms.push_back(det_objs[i]);
-            }
-        }
-
         DUMP_OBJ_INFO(det_objs_nms);
 
         crops[l].det_objs = det_objs_nms;
@@ -241,7 +229,6 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
     LOG_ASSERT(flag) << " output binding dims is not 3";
 
     float* output0 = static_cast<float*>(this->host_ptrs[1]);
-    float* output1 = static_cast<float*>(this->host_ptrs[0]);
     LOG(INFO) << "batch_size: " << batch_size << ", det_length: " << det_length << ", num_dets: " << num_dets;
 
     for (int i = 0; i < batch_size; i++)
@@ -275,6 +262,11 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
             det_obj.batch_id = i;
             det_obj.class_id = class_id;
             det_obj.name = CLASS_NAMES2[class_id];
+            det_obj.mask_in = new float[32];
+            for (int j = 0; j < 32; j++)
+            {
+                det_obj.mask_in[j] = GET(output0, i, j + 4 + 2, k, batch_size, det_length, num_dets);
+            }
             crops[i].det_objs.push_back(det_obj);
         }
     }

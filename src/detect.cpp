@@ -243,51 +243,23 @@ void Detect::nonMaxSuppression(std::vector<FrameInfo> &images, int batch_size)
     {
         // sort the results by confidence in descending order
         std::vector<DetObject> det_objs = images[l].det_objs;
+        std::vector<DetObject> det_objs_nms; 
         std::sort(det_objs.begin(), det_objs.end(), [](DetObject &a, DetObject &b) { return a.conf > b.conf; });
 
         DUMP_OBJ_INFO(det_objs);
-        std::vector<bool> keep(det_objs.size(), true);
-        for (int i = 0; i < det_objs.size(); i++)
-        {
-            if (keep[i])
-            {
-                for (int j = i + 1; j < det_objs.size(); j++)
-                {
-                    if (keep[j])
-                    {
-                        if (this->iou(det_objs[i].rect, det_objs[j].rect) > NMS_THRESH)
-                        {
-                            keep[j] = false;
-                        }
-                    }
-                }
-            }
-        }
 
-        std::vector<DetObject> det_objs_nms; 
-
-        for (int i = 0; i < keep.size(); i++)
+        while (det_objs.size() > 0)
         {
-            LOG(INFO) << "keep[" << i << "]: " << keep[i];
-            if (keep[i])
-            {
-                det_objs_nms.push_back(det_objs[i]);
-            }
+            DetObject det_obj = det_objs[0];
+            det_objs_nms.push_back(det_obj);
+            det_objs.erase(det_objs.begin());
+
         }
 
         DUMP_OBJ_INFO(det_objs_nms);
 
         images[l].det_objs = det_objs_nms;
 
-
-        // for (int i = 0, j = 0; i < det_objs.size(); i++, j++)
-        // {
-        //     if (!keep[j])
-        //     {
-        //         det_objs.erase(det_objs.begin() + i);
-        //         i--;
-        //     }
-        // }
     }
     LOG(INFO) << "non_max_suppresion done";
 }

@@ -27,6 +27,7 @@ struct DetObject
     int class_id;
     float conf;
     float reading;
+    float* mask_in;
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     std::string class_name;
     std::string meter_reading;
@@ -41,9 +42,9 @@ struct FrameInfo
 
 struct CropInfo
 {
-    cv::Mat crop;
-    cv::Mat mask_pointer;
-    cv::Mat mask_scale;
+    cv::Mat crop; // 512x512
+    cv::Mat mask_pointer; // 512x512
+    cv::Mat mask_scale; // 512x512
     int batch_id;
     int class_id;
     std::vector<DetObject> det_objs;
@@ -180,6 +181,7 @@ class Segment
 
         void nonMaxSuppression(std::vector<CropInfo> &crops, int batch_size); // non-maximum suppression
         float iou(const cv::Rect rect1, const cv::Rect rect2);    // calculate the IOU of two rectangles
+        void processMask(std::vector<CropInfo> &crops); // combine output0 and output1 to get masks
 
     public:
         Segment(std::string const &engine_path);                       // load the engine

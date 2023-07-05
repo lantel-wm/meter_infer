@@ -175,6 +175,9 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
         dst_h, dst_w, 3, batch_size
     );
 
+    CUDA_CHECK(cudaFree(d_ptr_src));
+    CUDA_CHECK(cudaFree(d_ptr_dst));
+
     // blobFromImage test code, currently no bug
     // view_device_batch_img((float*)this->device_ptrs[0], batch_size, 3, this->input_width, this->input_height, "input");
     // LOG_ASSERT(0) << "stop here";
@@ -218,4 +221,6 @@ void Segment::preprocess(std::vector<CropInfo> &crops)
     // view_device_batch_img((float*)this->device_ptrs[0], batch_size, 3, this->input_width, this->input_height, "input_seg");
     // LOG_ASSERT(0) << "stop here";
 
+    // CUDA_CHECK(cudaFree(d_ptr_src));
+    // CUDA_CHECK(cudaFree(d_ptr_dst));
 }
