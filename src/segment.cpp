@@ -106,6 +106,9 @@ Segment::Segment(std::string const &engine_filename)
 
     // allocate memory for input and output 
     this->makePipe(true);
+    cublas_status = cublasCreate(&cublas_handle);
+    LOG_ASSERT(cublas_status == CUBLAS_STATUS_SUCCESS) << "CUBLAS initialization failed!\n";
+
 }
 
 Segment::~Segment()
@@ -123,6 +126,7 @@ Segment::~Segment()
 	{
 		CUDA_CHECK(cudaFreeHost(ptr));
 	}
+    cublasDestroy(cublas_handle);
 }
 
 void Segment::engineInfo()

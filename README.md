@@ -27,12 +27,12 @@ File structure:
 ├── include
 │   ├── config.hpp
 │   ├── meter_reader.hpp
-│   └── stream_to_img.hpp
+│   └── stream.hpp
 ├── README.md
 └── src
     ├── main.cpp
     ├── meter_reader.cpp
-    └── stream_to_img.cpp
+    └── stream.cpp
 ```
 
 ## Requirements

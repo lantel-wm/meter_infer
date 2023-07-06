@@ -1,4 +1,4 @@
-#include "stream_to_img.hpp"
+#include "stream.hpp"
 #include "glog/logging.h"
 
 bool endsWith(std::string const &str, std::string const &suffix) {
@@ -15,7 +15,7 @@ bool startsWith(std::string const &str, std::string const &prefix) {
     return str.compare(0, prefix.length(), prefix) == 0;
 }
 
-stream_to_img::stream_to_img(std::string const &source)
+Stream::Stream(std::string const &source)
 {
     this->source = source;
     this->is_opened = false;
@@ -37,14 +37,14 @@ stream_to_img::stream_to_img(std::string const &source)
     }
 }
 
-stream_to_img::~stream_to_img()
+Stream::~Stream()
 {
     if (this->is_opened) {
         this->cap.release();
     }
 }
 
-bool stream_to_img::get_frame(cv::Mat &frame)
+bool Stream::get_frame(cv::Mat &frame)
 {
     if (this->is_opened) {
         switch (this->type) {
@@ -69,7 +69,7 @@ bool stream_to_img::get_frame(cv::Mat &frame)
     return this->is_opened;
 }
 
-bool stream_to_img::is_open()
+bool Stream::is_open()
 {
     return this->is_opened;
 }

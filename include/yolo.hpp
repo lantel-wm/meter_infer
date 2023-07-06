@@ -4,9 +4,11 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
+#include <cuda_runtime.h>
+#include "cublas_v2.h"
 #include "NvInfer.h"
 #include "common.hpp"
-#include "stream_to_img.hpp"
+#include "stream.hpp"
 
 using namespace nvinfer1;
 
@@ -46,9 +48,17 @@ struct CropInfo
     cv::Mat crop; // 640x640
     cv::Mat mask_pointer; // 160x160
     cv::Mat mask_scale; // 160x160
-    int batch_id;
     int class_id;
-    std::vector<DetObject> det_objs;
+    std::vector<DetObject> det_objs; // scales or pointer or water level
+};
+
+struct MeterInfo
+{
+    int meter_id; // meter identifier in the frame, sorted by the coordinate of the upperleft point
+    cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
+    int class_id; // 0: meter, 1: water
+    std::string class_name; // meter, water
+    std::string meter_reading; // e.g.: 2.3kPa, 66%
 };
 
 // logger used in TensorRT
@@ -174,6 +184,9 @@ class Segment
         std::vector<Binding> output_bindings;
         std::vector<void *> host_ptrs;
         std::vector<void *> device_ptrs;
+        // cublas
+        cublasHandle_t cublas_handle;
+        cublasStatus_t cublas_status;
 
         void preprocess(std::vector<CropInfo> &crops);      // preprocess the meter crops
         void postprocess(std::vector<CropInfo> &crops); // postprocess the image

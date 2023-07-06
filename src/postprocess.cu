@@ -5,7 +5,7 @@
 #include "cublas_v2.h"
 #include "glog/logging.h"
 #include "yolo.hpp"
-#include "stream_to_img.hpp"
+#include "stream.hpp"
 #include "config.hpp"
 #include "common.hpp"
 
@@ -103,11 +103,7 @@ void Segment::processMask(std::vector<CropInfo> &crops)
     // mask_out: n * 160 * 160
 
     // use cublas to do matrix multiplication
-    // init cublas
-    cublasHandle_t handle;
-    cublasStatus_t status = cublasCreate(&handle);
-    LOG_ASSERT(status == CUBLAS_STATUS_SUCCESS) << "CUBLAS initialization failed!\n";
-
+    
     float *output1 = static_cast<float *>(this->device_ptrs[1]); // proto 8x32x160x160
     LOG(INFO) << "batch_size: " << crops.size();
     int batch_size = crops.size();
@@ -137,8 +133,8 @@ void Segment::processMask(std::vector<CropInfo> &crops)
         float alpha = 1.0f;
         float beta = 0.0f;
         LOG(INFO) << "cuBLAS sgemm";
-        status = cublasSgemm_v2(
-            handle,
+        cublas_status = cublasSgemm_v2(
+            cublas_handle,
             CUBLAS_OP_T,
             CUBLAS_OP_T,
             nobjs,
@@ -152,7 +148,7 @@ void Segment::processMask(std::vector<CropInfo> &crops)
             &beta,
             d_mask_out,
             nobjs);
-        LOG_ASSERT(status == CUBLAS_STATUS_SUCCESS) << "CUBLAS sgemm failed!\n";
+        LOG_ASSERT(cublas_status == CUBLAS_STATUS_SUCCESS) << "CUBLAS sgemm failed!\n";
 
         dim3 block1(1024);
         dim3 grid1((nobjs * 160 * 160 + block1.x - 1) / block1.x);
@@ -176,9 +172,6 @@ void Segment::processMask(std::vector<CropInfo> &crops)
         CUDA_CHECK(cudaFree(d_mask_in));
         CUDA_CHECK(cudaFree(d_mask_out));
 
-        LOG_ASSERT(0) << " stop here";
-
         ibatch++;
     }
-    cublasDestroy(handle);
 }

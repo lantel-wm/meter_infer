@@ -29,7 +29,7 @@ dir tree:
 │   ├── detect.hpp
 │   ├── meter_reader.hpp
 │   ├── segment.hpp
-│   └── stream_to_img.hpp
+│   └── stream.hpp
 ├── LICENSE
 ├── README.md
 └── src
@@ -38,7 +38,7 @@ dir tree:
     ├── main.cpp
     ├── meter_reader.cpp
     ├── preprocess.cu
-    └── stream_to_img.cpp
+    └── stream.cpp
 
 ```
 

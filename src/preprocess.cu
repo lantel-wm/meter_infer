@@ -4,7 +4,7 @@
 
 #include "glog/logging.h"
 #include "yolo.hpp"
-#include "stream_to_img.hpp"
+#include "stream.hpp"
 #include "config.hpp"
 #include "common.hpp"
 

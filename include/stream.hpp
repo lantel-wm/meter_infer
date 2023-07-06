@@ -1,5 +1,5 @@
-#ifndef _STREAM_TO_IMG_HPP_
-#define _STREAM_TO_IMG_HPP_
+#ifndef _STREAM_HPP_
+#define _STREAM_HPP_
 
 #include <opencv2/opencv.hpp>
 #include <string>
@@ -8,7 +8,7 @@
 #define VIDEO 1
 #define RTSP 2
 
-class stream_to_img
+class Stream
 {
     private:
         cv::VideoCapture cap; // camera object
@@ -18,8 +18,8 @@ class stream_to_img
         int type; // type of the source, image, video or rstp stream
 
     public:
-        stream_to_img(std::string const &source);
-        ~stream_to_img();
+        Stream(std::string const &source);
+        ~Stream();
 
         bool get_frame(cv::Mat &frame);
         bool is_open();

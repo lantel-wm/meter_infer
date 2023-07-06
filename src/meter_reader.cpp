@@ -8,57 +8,67 @@
 #include "config.hpp"
 
 meterReader::meterReader(std::string const trt_model_det, std::string const trt_model_seg)
-    : detect(trt_model_det) 
 {   
     LOG(INFO) << "loading detector";
-    this->detect = detect;
-    this->detect.engineInfo();
+    detect = Detect(trt_model_det);
+    detect.engineInfo();
     LOG(INFO) << "detector loaded";
 
-    // LOG(INFO) << "loading segmenter";
-    // this->segment = Segment(trt_model_seg);
-    // this->segment.engineInfo();
-    // LOG(INFO) << "segmenter loaded";
+    LOG(INFO) << "loading segmenter";
+    segment = Segment(trt_model_seg);
+    segment.engineInfo();
+    LOG(INFO) << "segmenter loaded";
 
 }
 
 meterReader::~meterReader()
 {
+    ~detect();
+    ~segment();
 }
 
-void meterReader::read(std::vector<FrameInfo> &frames)
+void meterReader::read(std::vector<FrameInfo> &frame_batch)
 {
-    this->crop_meters(frames);
-    this->draw_boxes(frames);
+    crop_meters(frame_batch);
+    draw_boxes(frame_batch);
 }
 
-void meterReader::crop_meters(std::vector<FrameInfo> &frames)
+void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
 {
-    int batch_size = frames.size();
+    int batch_size = frame_batch.size();
 
     auto t1 = clock();
-    this->detect.detect(frames);
+    detect.detect(frame_batch);
     auto t2 = clock();
     LOG(WARNING) << "detection time: " << (t2 - t1) / 1000.0 << "ms";
 
-    for (auto &frame_info : frames)
+    crops.clear();
+
+    for (auto &frame_info : frame_batch)
     {
         for (auto &obj : frame_info.det_objs)
         {
+            CropInfo crop_info;
             cv::Mat crop = frame_info.frame(obj.rect);
-            cv::imwrite("crop" + std::to_string(obj.class_id) + ".png", crop);
-            if (obj.class_id == 0)
+            crop_info.crop = crop;
+            crop_info.class_id = obj.class_id;
+            if (crop_info.class_id == 0) // meter
             {
-                obj.class_name = "meter";
-                obj.meter_reading = "2.3kPa";
+                crops_meter.push_back(crop_info);
             }
-            else if (obj.class_id == 1)
+            else if (crop_info.class_id == 1) // water
             {
-                obj.class_name = "water";
-                obj.meter_reading = "66%";
+                crops_water.push_back(crop_info);
             }
         }
     }
+
+    segment.segment(crops_meter);
+
+    cv::imwrite("mask_pointer.png", crops_meter[0].mask_pointer);
+    cv::imwrite("mask_scale.png", crops_meter[0].mask_scale);
+
+    LOG_ASSERT(0) << " stop here";
 }
 
 void meterReader::draw_boxes(std::vector<FrameInfo> &images)
