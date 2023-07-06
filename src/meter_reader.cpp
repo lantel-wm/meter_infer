@@ -39,6 +39,8 @@ meterReader::meterReader(std::string const trt_model_det, std::string const trt_
 
     rect_scale = new uint8_t[RECT_WIDTH * RECT_HEIGHT]; // 360 * 40
     rect_pointer = new uint8_t[RECT_WIDTH * RECT_HEIGHT]; // 360 * 40
+    line_scale = new int[RECT_WIDTH]; // 512
+    line_pointer = new int[RECT_WIDTH]; // 512
 
     CUDA_CHECK(cudaMalloc((void**)&d_rect_scale, RECT_WIDTH * RECT_HEIGHT * sizeof(uint8_t)));
     CUDA_CHECK(cudaMalloc((void**)&d_rect_pointer, RECT_WIDTH * RECT_HEIGHT * sizeof(uint8_t)));

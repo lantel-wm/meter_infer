@@ -23,12 +23,17 @@ class meterReader
         void read_meter(std::vector<CropInfo> &crops_meter, std::vector<MeterInfo> &meters);
         void minimum_coverage_circle(std::vector<cv::Point> &points, int &radius, cv::Point &center);
 
+        // arrays used in read_meter
         uint8_t* rect_scale;
         uint8_t* rect_pointer;
         uint8_t* d_rect_scale; // device pointer
         uint8_t* d_rect_pointer; // device pointer
         uint8_t* d_circle_scale; // device pointer
         uint8_t* d_circle_pointer; // device pointer
+        int* line_pointer;
+        int* line_scale;
+        int* d_line_pointer; // device pointer
+        int* d_line_scale; // device pointer
 
     public:
         meterReader(std::string const trt_model_det, std::string const trt_model_seg);
