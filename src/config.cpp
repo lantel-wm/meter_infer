@@ -57,3 +57,6 @@ const int RECT_WIDTH = 512; // 512 pixels, 360 / 512 degrees per pixel
 const int RECT_HEIGHT = 32;
 const int CIRCLE_WIDTH = 160; // 160 pixels
 const int CIRCLE_HEIGHT = 160;
+
+extern const float METER_RANGES[2] = {4.0f, 100.0f};
+extern const char METER_UNITS[2][50] = {"kPa", "%"};

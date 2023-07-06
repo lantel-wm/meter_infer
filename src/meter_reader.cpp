@@ -46,12 +46,15 @@ meterReader::meterReader(std::string const trt_model_det, std::string const trt_
     CUDA_CHECK(cudaMalloc((void**)&d_rect_pointer, RECT_WIDTH * RECT_HEIGHT * sizeof(uint8_t)));
     CUDA_CHECK(cudaMalloc((void**)&d_circle_scale, CIRCLE_WIDTH * CIRCLE_HEIGHT * sizeof(uint8_t)));
     CUDA_CHECK(cudaMalloc((void**)&d_circle_pointer, CIRCLE_WIDTH * CIRCLE_HEIGHT * sizeof(uint8_t)));
+
 }
 
 meterReader::~meterReader()
 {
     delete[] rect_scale;
     delete[] rect_pointer;
+    delete[] line_scale;
+    delete[] line_pointer;
     CUDA_CHECK(cudaFree(d_rect_scale));
     CUDA_CHECK(cudaFree(d_rect_pointer));
     CUDA_CHECK(cudaFree(d_circle_scale));

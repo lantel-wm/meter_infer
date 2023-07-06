@@ -3,6 +3,7 @@
 #include <vector>
 #include <random>
 #include <math.h>
+#include <iostream>
 
 #include "glog/logging.h"
 #include "meter_reader.hpp"
@@ -12,15 +13,109 @@
 
 #define PI 3.1415926f
 
-__global__ void rect_to_line(uint8_t* img, int* sum, int width, int height)
+float location_to_reading(std::vector<float> p_loc, std::vector<float> s_loc)
+// return a float range in [0, 1]
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int num_scales = s_loc.size();
+    
+    if (p_loc[0] < s_loc[0])
+        return 0.0f;
+    if (p_loc[0] > s_loc[num_scales - 1])
+        return 1.0f;
 
-    if (x >= width)
-        return;
+    for (int i = 0; i < num_scales - 1; i++)
+    {
+        if (p_loc[0] >= s_loc[i] && p_loc[0] <= s_loc[i + 1])
+        {
+            return ((float)i + (p_loc[0] - s_loc[i]) / (s_loc[i + 1] - s_loc[i])) / (num_scales - 1);
+        }
+    }
 
-    for (int y = 0; y < height; y++)
-        sum[x] += img[y * width + x];
+    return -1.0f;
+}
+
+void line_to_location(int *line, std::vector<float> &location, int width)
+{
+    float index_buffer[width];
+    int ib_cur = 0; // pointer to index_buffer
+    bool ascending = true;
+    for (int i = 1; i < width - 1; i++)
+    {
+        if (line[i] == 0)
+        {
+            continue;
+        }
+
+        if (line[i - 1] > line[i])
+        {
+            ascending = false;
+            continue;
+        }
+
+        if (line[i - 1] < line[i] && line[i] > line[i + 1]) // 4 6 5
+        {
+            location.push_back((float)i);
+            continue;
+        }
+
+        if (line[i - 1] <= line[i] && line[i] <= line[i + 1])
+        {
+            ascending = true;
+        }
+
+        if (line[i - 1] < line[i] && line[i] == line[i + 1]) // 4 6 6
+        {
+            index_buffer[ib_cur++] = (float)i;
+            continue;
+        }
+
+        if (ascending && line[i - 1] == line[i] && line[i] == line[i + 1])
+        {
+            index_buffer[ib_cur++] = (float)i;
+            continue;
+        }
+
+        if (ascending && line[i - 1] == line[i] && line[i] > line[i + 1])
+        {
+            index_buffer[ib_cur++] = (float)i;
+            float mean = 0;
+            for (int j = 0; j < ib_cur; j++)
+            {
+                mean += index_buffer[j];
+            }
+            mean /= ib_cur;
+            location.push_back(mean);
+            ib_cur = 0;
+        }
+    }
+}
+
+// __global__ void rect_to_line(uint8_t* rect, int* line, int width, int height)
+// {
+//     int x = blockIdx.x * blockDim.x + threadIdx.x;
+
+//     if (x >= width)
+//         return;
+
+//     line[x] = 0;
+//     for (int y = 0; y < height; y++)
+//         line[x] += rect[y * width + x];
+// }
+
+void rect_to_line_cpu(uint8_t* rect, int* line, int width, int height)
+{
+    float mean = 0;
+    for (int x = 0; x < width; x++)
+    {
+        line[x] = 0;
+        for (int y = 0; y < height; y++)
+            line[x] += rect[y * width + x];
+        mean += line[x];
+    }
+    mean /= width;
+
+    for (int x = 0; x < width; x++)
+        line[x] = line[x] > mean ? line[x] - mean : 0;
 }
 
 __global__ void circle_to_rect(uint8_t* circle, uint8_t* rect, int radius, cv::Point center,
@@ -171,19 +266,9 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         // auto t2 = clock();
         // LOG(WARNING) << "circle_to_rect time: " << (t2 - t1) * 1.0 / CLOCKS_PER_SEC * 1000 << " ms";
 
-        // CUDA_CHECK(cudaMemcpy(rect_pointer, d_rect_pointer, RECT_HEIGHT * RECT_WIDTH * sizeof(uint8_t), cudaMemcpyDeviceToHost));
-        // CUDA_CHECK(cudaMemcpy(rect_scale, d_rect_scale, RECT_HEIGHT * RECT_WIDTH * sizeof(uint8_t), cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaMemcpy(rect_pointer, d_rect_pointer, RECT_HEIGHT * RECT_WIDTH * sizeof(uint8_t), cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaMemcpy(rect_scale, d_rect_scale, RECT_HEIGHT * RECT_WIDTH * sizeof(uint8_t), cudaMemcpyDeviceToHost));
         
-        dim3 block2 = dim3(32);
-        dim3 grid2 = dim3((RECT_WIDTH + block2.x - 1) / block2.x);
-
-        LOG(INFO) << "kernel rect_to_line launched with "
-                << grid2.x << "x" << grid2.y << "x" << grid2.z << " blocks of "
-                << block2.x << "x" << block2.y << "x" << block2.z << " threads";
-        
-        rect_to_line<<<grid2, block2>>>(d_rect_pointer, d_line_pointer, RECT_WIDTH, RECT_HEIGHT);
-        rect_to_line<<<grid2, block2>>>(d_rect_scale, d_line_scale, RECT_WIDTH, RECT_HEIGHT);
-
         // CPU version
         // auto t1 = clock();
         // circle_to_rect_cpu(mask_pointer.data, rect_pointer, radius, center, RECT_WIDTH, RECT_HEIGHT, CIRCLE_WIDTH, CIRCLE_HEIGHT);
@@ -197,6 +282,45 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         // cv::imwrite("./rect_pointer.png", rect_pointer_img);
         // cv::imwrite("./rect_scale.png", rect_scale_img);
         // LOG_ASSERT(0) << "stop here";
+
+        // CPU version
+        // auto t1 = clock();
+        rect_to_line_cpu(rect_pointer, line_pointer, RECT_WIDTH, RECT_HEIGHT);
+        rect_to_line_cpu(rect_scale, line_scale, RECT_WIDTH, RECT_HEIGHT);
+        // auto t2 = clock();
+        // LOG(WARNING) << "rect_to_line_cpu time: " << (t2 - t1) * 1.0 / CLOCKS_PER_SEC * 1000 << " ms";
+
+        // debug
+        for (int i = 0; i < RECT_WIDTH; i++) printf("%d ", line_pointer[i]); printf("\n\n");
+        for (int i = 0; i < RECT_WIDTH; i++) printf("%d ", line_scale[i]); printf("\n");
+
+        std::vector<float> pointer_location;
+        std::vector<float> scale_location;
+
+        line_to_location(line_pointer, pointer_location, RECT_WIDTH);
+        line_to_location(line_scale, scale_location, RECT_WIDTH);
+
+        std::cout << "pointer: " << pointer_location.size() << std::endl;
+        for (int i = 0; i < pointer_location.size(); i++) printf("%f ", pointer_location[i]); printf("\n\n");
+
+        std::cout << "scale: " << scale_location.size() << std::endl;
+        for (int i = 0; i < scale_location.size(); i++) printf("%f ", scale_location[i]); printf("\n\n");
+
+        float reading_percent = location_to_reading(pointer_location, scale_location);
+        float reading_number = reading_percent * METER_RANGES[0];
+        std::string meter_reading = std::to_string(reading_number) + " " + METER_UNITS[0];
+
+        MeterInfo meter_info;
+        meter_info.class_id = 0; // meter
+        meter_info.class_name = "meter";
+        meter_info.meter_id = im;
+        meter_info.meter_reading = meter_reading;
+        meters.push_back(meter_info);
+
+        LOG(WARNING) << meter_reading;
+
+        LOG_ASSERT(0) << " stop here";
+        
     }
 }
 

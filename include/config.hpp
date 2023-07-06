@@ -50,4 +50,8 @@ extern const int RECT_HEIGHT; // circle_to_rect, height of rectangle
 extern const int CIRCLE_WIDTH; // circle_to_rect, width of circle mat
 extern const int CIRCLE_HEIGHT; // circle_to_rect, height of circle mat
 
+// meter config
+extern const float METER_RANGES[2];
+extern const char METER_UNITS[2][50];
+
 #endif

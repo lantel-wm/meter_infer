@@ -32,8 +32,6 @@ class meterReader
         uint8_t* d_circle_pointer; // device pointer
         int* line_pointer;
         int* line_scale;
-        int* d_line_pointer; // device pointer
-        int* d_line_scale; // device pointer
 
     public:
         meterReader(std::string const trt_model_det, std::string const trt_model_seg);

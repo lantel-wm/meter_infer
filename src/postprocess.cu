@@ -81,11 +81,11 @@ void crop_mask(float* masks, int nobjs, std::vector<DetObject> &det_objs, cv::Ma
 
                 if (det_objs[iobj].class_id == 1)
                 {
-                    mask_s.at<uint8_t>(y, x) = 255;
+                    mask_s.at<uint8_t>(y, x) = 1;
                 }
                 else
                 {
-                    mask_p.at<uint8_t>(y, x) = 255;
+                    mask_p.at<uint8_t>(y, x) = 1;
                 }
                 
             }
