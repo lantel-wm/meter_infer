@@ -199,7 +199,7 @@ void Segment::preprocess(std::vector<CropInfo> &crops)
     int ibatch = 0;
     for(auto crop_info : crops)
     {
-        // cv::resize(crop_info.crop, crop_info.crop, cv::Size(this->input_width, this->input_height));   
+        cv::resize(crop_info.crop, crop_info.crop, cv::Size(this->input_width, this->input_height));   
         LOG(INFO) << "crop size" << crop_info.crop.size();
         CUDA_CHECK(cudaMemcpy(d_ptr + ibatch * w * h * 3, crop_info.crop.data, size, cudaMemcpyHostToDevice));
         ibatch++;

@@ -17,14 +17,24 @@ class meterReader
         std::vector<CropInfo> crops_water; // cropped water
 
         void crop_meters(std::vector<FrameInfo> &frame_batch);
-        void read_number(); // input this->meters, output this->readings
+        void read_number(std::vector<MeterInfo> &meters);
         void draw_boxes(std::vector<FrameInfo> &images); // draw the bounding box of the detected objects
+
+        void read_meter(std::vector<CropInfo> &crops_meter, std::vector<MeterInfo> &meters);
+        void minimum_coverage_circle(std::vector<cv::Point> &points, int &radius, cv::Point &center);
+
+        uint8_t* rect_scale;
+        uint8_t* rect_pointer;
+        uint8_t* d_rect_scale; // device pointer
+        uint8_t* d_rect_pointer; // device pointer
+        uint8_t* d_circle_scale; // device pointer
+        uint8_t* d_circle_pointer; // device pointer
 
     public:
         meterReader(std::string const trt_model_det, std::string const trt_model_seg);
         ~meterReader();
 
-        void read(std::vector<FrameInfo> &frame_batch);
+        void read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters);
         
 };
 

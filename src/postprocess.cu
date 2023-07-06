@@ -108,7 +108,7 @@ void Segment::processMask(std::vector<CropInfo> &crops)
     LOG(INFO) << "batch_size: " << crops.size();
     int batch_size = crops.size();
 
-    view_proto(output1);
+    // view_proto(output1);
     // LOG_ASSERT(0) << " stop here";
 
     for (int ibatch = 0; ibatch < batch_size; ibatch++)
@@ -148,7 +148,7 @@ void Segment::processMask(std::vector<CropInfo> &crops)
             &beta,
             d_mask_out,
             nobjs);
-        LOG_ASSERT(cublas_status == CUBLAS_STATUS_SUCCESS) << "CUBLAS sgemm failed!\n";
+        LOG_ASSERT(cublas_status == CUBLAS_STATUS_SUCCESS) << "\nCUBLAS sgemm failed!\n";
 
         dim3 block1(1024);
         dim3 grid1((nobjs * 160 * 160 + block1.x - 1) / block1.x);
@@ -162,12 +162,12 @@ void Segment::processMask(std::vector<CropInfo> &crops)
 
         LOG(INFO) << "mask_out: " << mask_out[0] << " " << mask_out[1] << " " << mask_out[2];
 
-        view_masks(mask_out, nobjs, det_objs);
+        // view_masks(mask_out, nobjs, det_objs);
 
         crop_mask(mask_out, nobjs, det_objs, crops[ibatch].mask_scale, crops[ibatch].mask_pointer);
 
-        cv::imwrite("./mask_scale.png", crops[ibatch].mask_scale);
-        cv::imwrite("./mask_pointer.png", crops[ibatch].mask_pointer);
+        // cv::imwrite("./mask_scale.png", crops[ibatch].mask_scale);
+        // cv::imwrite("./mask_pointer.png", crops[ibatch].mask_pointer);
 
         CUDA_CHECK(cudaFree(d_mask_in));
         CUDA_CHECK(cudaFree(d_mask_out));

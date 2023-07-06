@@ -52,3 +52,8 @@ const std::vector<cv::Scalar> COLORS = {
     cv::Scalar(122, 190, 255),
     cv::Scalar(111, 127, 250)
 };
+
+const int RECT_WIDTH = 360; // 360 degrees
+const int RECT_HEIGHT = 64;
+const int CIRCLE_WIDTH = 160; // 160 pixels
+const int CIRCLE_HEIGHT = 160;

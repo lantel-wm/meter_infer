@@ -106,6 +106,8 @@ Segment::Segment(std::string const &engine_filename)
 
     // allocate memory for input and output 
     this->makePipe(true);
+
+    //cublas init
     cublas_status = cublasCreate(&cublas_handle);
     LOG_ASSERT(cublas_status == CUBLAS_STATUS_SUCCESS) << "CUBLAS initialization failed!\n";
 
@@ -190,7 +192,7 @@ void Segment::nonMaxSuppression(std::vector<CropInfo> &crops, int batch_size)
         std::vector<DetObject> det_objs_nms; 
         std::sort(det_objs.begin(), det_objs.end(), [](DetObject &a, DetObject &b) { return a.conf > b.conf; });
 
-        DUMP_OBJ_INFO(det_objs);
+        // DUMP_OBJ_INFO(det_objs);
 
         while (det_objs.size() > 0)
         {
@@ -207,7 +209,7 @@ void Segment::nonMaxSuppression(std::vector<CropInfo> &crops, int batch_size)
                 }
             }
         }
-        DUMP_OBJ_INFO(det_objs_nms);
+        // DUMP_OBJ_INFO(det_objs_nms);
 
         crops[l].det_objs = det_objs_nms;
     }
@@ -218,6 +220,7 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
 {
     int batch_size, det_length, num_dets;
     bool flag = false;
+    float t1, t2;
 
     batch_size = crops.size();
     for (auto &ob: this->output_bindings)
@@ -235,6 +238,7 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
     float* output0 = static_cast<float*>(this->host_ptrs[1]);
     LOG(INFO) << "batch_size: " << batch_size << ", det_length: " << det_length << ", num_dets: " << num_dets;
 
+    
     for (int i = 0; i < batch_size; i++)
     {
         for (int k = 0; k < num_dets; k++)
@@ -244,6 +248,7 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
                 GET(output0, i, 5, k, batch_size, det_length, num_dets)
                 );
             float conf = GET(output0, i, 4 + class_id, k, batch_size, det_length, num_dets);
+            // LOG(INFO) << "i: " << i << ", k: " << k << ", class_id: " << class_id << ", conf: " << conf;
             if (conf < CONF_THRESH) continue;
 
             float x = GET(output0, i, 0, k, batch_size, det_length, num_dets);
@@ -251,14 +256,14 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
             float w = GET(output0, i, 2, k, batch_size, det_length, num_dets);
             float h = GET(output0, i, 3, k, batch_size, det_length, num_dets);
 
-            LOG(INFO) << "x: " << x << ", y: " << y << ", w: " << w << ", h: " << h;
+            // LOG(INFO) << "x: " << x << ", y: " << y << ", w: " << w << ", h: " << h;
 
             float x1 = x - w / 2.f;
             float y1 = y - h / 2.f;
             float x2 = x + w / 2.f;
             float y2 = y + h / 2.f;
 
-            LOG(INFO) << "x1: " << x1 << ", y1: " << y1 << ", x2: " << x2 << ", y2: " << y2;
+            // LOG(INFO) << "x1: " << x1 << ", y1: " << y1 << ", x2: " << x2 << ", y2: " << y2;
 
             DetObject det_obj;
             det_obj.rect = cv::Rect(x1, y1, x2 - x1, y2 - y1);
@@ -275,14 +280,15 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
         }
     }
     
+
     for (int i = 0; i < batch_size; i++)
     {
         LOG(INFO) << "detected objects in batch " << i << " before nms: " << crops[i].det_objs.size();
     }
 
-    auto t1 = clock();
+    t1 = clock();
     this->nonMaxSuppression(crops, batch_size);
-    auto t2 = clock();
+    t2 = clock();
     LOG(WARNING) << "nms time: " << 1000 * (t2 - t1) * 1.0 / CLOCKS_PER_SEC << "ms";
 
     for (int i = 0; i < batch_size; i++)
@@ -290,7 +296,10 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
         LOG(INFO) << "detected objects in batch " << i << " after nms: " << crops[i].det_objs.size();
     }
 
+    t1 = clock();
     processMask(crops);
+    t2 = clock();
+    LOG(WARNING) << "process mask time: " << 1000 * (t2 - t1) * 1.0 / CLOCKS_PER_SEC << "ms";
 }
 
 void Segment::makePipe(bool warmup)

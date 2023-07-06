@@ -251,9 +251,17 @@ void Detect::nonMaxSuppression(std::vector<FrameInfo> &images, int batch_size)
         while (det_objs.size() > 0)
         {
             DetObject det_obj = det_objs[0];
-            det_objs_nms.push_back(det_obj);
             det_objs.erase(det_objs.begin());
+            det_objs_nms.push_back(det_obj);
 
+            for (int i = 0; i < det_objs.size(); i++)
+            {
+                if (this->iou(det_obj.rect, det_objs[i].rect) > NMS_THRESH)
+                {
+                    det_objs.erase(det_objs.begin() + i);
+                    i--;
+                }
+            }
         }
 
         DUMP_OBJ_INFO(det_objs_nms);

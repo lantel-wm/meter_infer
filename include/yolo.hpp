@@ -48,6 +48,7 @@ struct CropInfo
     cv::Mat crop; // 640x640
     cv::Mat mask_pointer; // 160x160
     cv::Mat mask_scale; // 160x160
+    cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     int class_id;
     std::vector<DetObject> det_objs; // scales or pointer or water level
 };

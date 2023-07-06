@@ -44,4 +44,10 @@ extern const int LEVEL;
 
 extern const std::vector<cv::Scalar> COLORS;
 
+// circle_to_rect config
+extern const int RECT_WIDTH; // circle_to_rect, width of rectangle
+extern const int RECT_HEIGHT; // circle_to_rect, height of rectangle
+extern const int CIRCLE_WIDTH; // circle_to_rect, width of circle mat
+extern const int CIRCLE_HEIGHT; // circle_to_rect, height of circle mat
+
 #endif

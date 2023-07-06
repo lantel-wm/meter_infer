@@ -28,6 +28,8 @@ int main(int argc, char **argv)
     Stream stream(IMAGE_PATH + "60.png");
     // stream stream(VIDEO_PATH + "201.mp4");
 
+    std::vector<MeterInfo> meters;
+
     // get frame batch
     cv::Mat frame;
     while (stream.is_open())
@@ -49,7 +51,7 @@ int main(int argc, char **argv)
             frame_batch.push_back(frame_info);        
         }
 
-        meter_reader.read(frame_batch);
+        meter_reader.read(frame_batch, meters);
     }
     return 0;
 }

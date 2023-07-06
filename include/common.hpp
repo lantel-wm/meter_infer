@@ -195,6 +195,4 @@ inline void view_proto(float* d_ptr)
     }
 }
 
-
-
 #endif
