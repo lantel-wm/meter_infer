@@ -307,7 +307,7 @@ void Detect::postprocess(std::vector<FrameInfo> &images)
             float w = GET(output, i, 2, k, batch_size, det_length, num_dets);
             float h = GET(output, i, 3, k, batch_size, det_length, num_dets);
 
-            // LOG(INFO) << "x: " << x << ", y: " << y << ", w: " << w << ", h: " << h;
+            LOG(INFO) << "x: " << x << ", y: " << y << ", w: " << w << ", h: " << h;
 
             float x1 = (x - w / 2.f) - dw;
             float y1 = (y - h / 2.f) - dh;
@@ -319,7 +319,7 @@ void Detect::postprocess(std::vector<FrameInfo> &images)
             x2 = clamp(x2 * ratio, 0.f, this->image_width);
             y2 = clamp(y2 * ratio, 0.f, this->image_height);
 
-            // LOG(INFO) << "x1: " << x1 << ", y1: " << y1 << ", x2: " << x2 << ", y2: " << y2;
+            LOG(INFO) << "x1: " << x1 << ", y1: " << y1 << ", x2: " << x2 << ", y2: " << y2;
 
             DetObject det_obj;
             det_obj.rect = cv::Rect(x1, y1, x2 - x1, y2 - y1);

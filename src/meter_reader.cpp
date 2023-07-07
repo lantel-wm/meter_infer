@@ -135,8 +135,11 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
     for (int i = 0; i < crops_water.size(); i += 8)
     {
         std::vector<FrameInfo> crops_water_batch;
+        int first = i;
+        int last = MIN(i + 8, crops_water.size());
+        int batch_size = last - first;
 
-        for (int j = i; j < i + 8; j++)
+        for (int j = first; j < last; j++)
         {
             FrameInfo frame_info;
             frame_info.frame = crops_water[j].crop;

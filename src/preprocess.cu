@@ -148,7 +148,9 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
 
     LOG(INFO) << "warp_affine kernel launched with "
                 << grid1.x << "x" << grid1.y << "x" << grid1.z << " blocks of "
-                << block1.x << "x" << block1.y << "x" << block1.z << " threads";
+                << block1.x << "x" << block1.y << "x" << block1.z << " threads, "
+                << "src_w: " << src_w << ", src_h: " << src_h
+                << ", dst_w: " << dst_w << ", dst_h: " << dst_h;
 
     // do letterbox transformation on src image
     // src: [src_h, src_w, 3], dst: [dst_h, dst_w, 3]
@@ -158,8 +160,11 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
         114, this->affine_matrix);
     
     // warp affine test code, currently no bug
-    // view_device_input_img_batch(d_ptr_dst, batch_size, 3, dst_h, dst_w, "dst");
-    // LOG_ASSERT(0) << "stop here";
+    // if (images[0].info == "water crops")
+    {
+        view_device_input_img_batch(d_ptr_dst, batch_size, 3, dst_h, dst_w, "dst");
+        LOG_ASSERT(0) << "stop here";
+    }
 
     dim3 block2(16, 16, 3);
     dim3 grid2((dst_w + block2.x - 1) / block2.x, (dst_h + block2.y - 1) / block2.y, (3 + block2.z - 1) / block2.z);

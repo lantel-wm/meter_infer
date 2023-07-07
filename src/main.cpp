@@ -29,9 +29,10 @@ int main(int argc, char **argv)
 
     // init meter reader
     meterReader meter_reader("yolov8n_batch8.trt", "yolov8s-seg_batch8.trt");
-
+    
+    Stream stream(IMAGE_PATH + "60.png");
     // Stream stream(IMAGE_PATH + "23.jpg");
-    Stream stream(VIDEO_PATH + "201.mp4");
+    // Stream stream(VIDEO_PATH + "201.mp4");
 
     std::vector<MeterInfo> meters;
 

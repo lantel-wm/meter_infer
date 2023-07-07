@@ -96,7 +96,6 @@ struct AffineMatrix
         M = [
         scale,    0,     -scale * from.width  * 0.5 + to.width  * 0.5
         0,     scale,    -scale * from.height * 0.5 + to.height * 0.5
-        0,        0,                     1
         ]
         */
         /*
