@@ -63,36 +63,39 @@ meterReader::~meterReader()
 
 void meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters)
 {
-    auto t1 = clock();
+    // auto t1 = clock();
     crop_meters(frame_batch);
-    auto t2 = clock();
-    LOG(WARNING) << "crop_meters time: " << (t2 - t1) / 1000.0 << "ms";
+    // auto t2 = clock();
+    // LOG(WARNING) << "crop_meters time: " << (t2 - t1) / 1000.0 << "ms";
 
     read_number(meters);
 
-    draw_boxes(frame_batch);
+    // draw_boxes(frame_batch, meters);
 }
 
 void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
 {
     int batch_size = frame_batch.size();
 
-    auto t1 = clock();
+    // auto t1 = clock();
     detect.detect(frame_batch);
-    auto t2 = clock();
-    LOG(WARNING) << "detection time: " << (t2 - t1) / 1000.0 << "ms";
-
+    // auto t2 = clock();
+    // LOG(WARNING) << "detection time: " << (t2 - t1) / 1000.0 << "ms";
+    
+    // TODO: used a 2d vector to store more kinds of meters
     crops_meter.clear();
     crops_water.clear();
 
-    for (auto &frame_info : frame_batch)
+    for (int ibatch = 0; ibatch < batch_size; ibatch++)
     {
+        FrameInfo frame_info = frame_batch[ibatch];
         for (auto &obj : frame_info.det_objs)
         {
             CropInfo crop_info;
             cv::Mat crop = frame_info.frame(obj.rect);
             crop_info.crop = crop;
             crop_info.class_id = obj.class_id;
+            crop_info.det_batch_id = ibatch;
             crop_info.rect = obj.rect;
             if (crop_info.class_id == 0) // meter
             {
@@ -106,6 +109,7 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
     }
     // view_crops(crops_meter, crops_water);
 
+    // meter segmentation
     // break the crops into batches of 8
     for (int i = 0; i < crops_meter.size(); i += 8)
     {
@@ -115,15 +119,47 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
         crops_meter_batch.assign(first, last);
         int batch_size = crops_meter_batch.size();
         LOG(INFO) << "segmenting " << crops_meter_batch.size() << " crops";
-        t1 = clock();
+        // t1 = clock();
         segment.segment(crops_meter_batch);
-        t2 = clock();
-        LOG(WARNING) << "segmentation time: " << (t2 - t1) / 1000.0 << "ms";
+        // t2 = clock();
+        // LOG(WARNING) << "segmentation time: " << (t2 - t1) / 1000.0 << "ms";
         for (int j = 0; j < batch_size; j++)
         {
             crops_meter[i + j].mask_pointer = crops_meter_batch[j].mask_pointer;
             crops_meter[i + j].mask_scale = crops_meter_batch[j].mask_scale;
         }
+    }
+
+    // water detection
+    // break the crops into batches of 8
+    for (int i = 0; i < crops_water.size(); i += 8)
+    {
+        std::vector<FrameInfo> crops_water_batch;
+
+        for (int j = i; j < i + 8; j++)
+        {
+            FrameInfo frame_info;
+            frame_info.frame = crops_water[j].crop;
+            frame_info.info = "water crops";
+            crops_water_batch.push_back(frame_info);
+        }
+        LOG(INFO) << "detecting " << crops_water_batch.size() << " crops";
+        // t1 = clock();
+        detect.detect(crops_water_batch);
+        // t2 = clock();
+        // LOG(WARNING) << "detection time: " << (t2 - t1) / 1000.0 << "ms";
+        for (int j = 0; j < batch_size; j++)
+        {
+            crops_water[i + j].det_objs = crops_water_batch[j].det_objs;
+        }
+
+        cv::Mat water_det = crops_water[i].crop.clone();
+        for (auto &obj : crops_water[i].det_objs)
+        {
+            cv::rectangle(water_det, obj.rect, cv::Scalar(0, 0, 255), 2);
+        }
+        cv::imwrite("water_det.png", water_det);
+        LOG_ASSERT(0) << " stop here";
     }
 
     // cv::imwrite("mask_pointer.png", crops_meter[0].mask_pointer);
@@ -132,17 +168,38 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
     // LOG_ASSERT(0) << " stop here";
 }
 
-void meterReader::draw_boxes(std::vector<FrameInfo> &images)
+void meterReader::draw_boxes(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> meters)
 {
-    for (auto &image : images)
+    // for (auto &image : images)
+    // {
+    //     for (auto &obj : image.det_objs)
+    //     {
+    //         std::string display_text = obj.class_name + " " + obj.meter_reading;
+    //         cv::Scalar color = COLORS[obj.class_id];
+    //         cv::rectangle(image.frame, obj.rect, color, 2);
+    //         cv::putText(image.frame, display_text, cv::Point(obj.rect.x, obj.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
+    //     }
+    //     // cv::imwrite("result.png", image.frame);
+    // }
+    
+    for (int ibatch = 0; ibatch < frame_batch.size(); ibatch++)
     {
-        for (auto &obj : image.det_objs)
+        FrameInfo frame_info = frame_batch[ibatch];
+        int img_width = frame_info.frame.cols;
+        int img_height = frame_info.frame.rows;
+
+        for (auto &meter_info: meters)
         {
-            std::string display_text = obj.class_name + " " + obj.meter_reading;
-            cv::Scalar color = COLORS[obj.class_id];
-            cv::rectangle(image.frame, obj.rect, color, 2);
-            cv::putText(image.frame, display_text, cv::Point(obj.rect.x, obj.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
+            if (meter_info.det_batch_id != ibatch)
+                continue;
+            
+            std::string display_text = meter_info.class_name + " " + meter_info.meter_reading;
+            cv::Scalar color = COLORS[meter_info.class_id];
+            cv::rectangle(frame_info.frame, meter_info.rect, color, 2);
+            cv::putText(frame_info.frame, display_text, cv::Point(meter_info.rect.x, meter_info.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
         }
-        cv::imwrite("result.png", image.frame);
     }
+    // cv::imwrite("result.png", frame_batch[0].frame);
+    // sleep(1);
+    // cv::imshow("result", frame_batch[0].frame);
 }

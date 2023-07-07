@@ -286,20 +286,20 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
         LOG(INFO) << "detected objects in batch " << i << " before nms: " << crops[i].det_objs.size();
     }
 
-    t1 = clock();
+    // t1 = clock();
     this->nonMaxSuppression(crops, batch_size);
-    t2 = clock();
-    LOG(WARNING) << "nms time: " << 1000 * (t2 - t1) * 1.0 / CLOCKS_PER_SEC << "ms";
+    // t2 = clock();
+    // LOG(WARNING) << "nms time: " << 1000 * (t2 - t1) * 1.0 / CLOCKS_PER_SEC << "ms";
 
     for (int i = 0; i < batch_size; i++)
     {
         LOG(INFO) << "detected objects in batch " << i << " after nms: " << crops[i].det_objs.size();
     }
 
-    t1 = clock();
+    // t1 = clock();
     processMask(crops);
-    t2 = clock();
-    LOG(WARNING) << "process mask time: " << 1000 * (t2 - t1) * 1.0 / CLOCKS_PER_SEC << "ms";
+    // t2 = clock();
+    // LOG(WARNING) << "process mask time: " << 1000 * (t2 - t1) * 1.0 / CLOCKS_PER_SEC << "ms";
 }
 
 void Segment::makePipe(bool warmup)
@@ -385,11 +385,11 @@ void Segment::infer()
 void Segment::segment(std::vector<CropInfo> &crops)
 {
     // preprocess input
-    auto t1 = clock();
+    // auto t1 = clock();
     // this->letterbox(image, nchw);
     this->preprocess(crops);
-    auto t2 = clock();
-    LOG(WARNING) << "image processed in " << (t2 - t1) / 1000.0 << " ms";
+    // auto t2 = clock();
+    // LOG(WARNING) << "image processed in " << (t2 - t1) / 1000.0 << " ms";
 
     // // copy to device
     // t1 = clock();
@@ -398,14 +398,14 @@ void Segment::segment(std::vector<CropInfo> &crops)
     // LOG(WARNING) << "image copied to device in " << (t2 - t1) / 1000.0 << " ms";
 
     // run inference
-    t1 = clock();
+    // t1 = clock();
     this->infer();
-    t2 = clock();
-    LOG(WARNING) << "inference done in " << (t2 - t1) / 1000.0 << " ms";
+    // t2 = clock();
+    // LOG(WARNING) << "inference done in " << (t2 - t1) / 1000.0 << " ms";
 
     // postprocess output
-    t1 = clock();
+    // t1 = clock();
     this->postprocess(crops);
-    t2 = clock();
-    LOG(WARNING) << "postprocess done in " << (t2 - t1) / 1000.0 << " ms";
+    // t2 = clock();
+    // LOG(WARNING) << "postprocess done in " << (t2 - t1) / 1000.0 << " ms";
 }

@@ -39,6 +39,7 @@ void line_to_location(int *line, std::vector<float> &location, int width)
     float index_buffer[width];
     int ib_cur = 0; // pointer to index_buffer
     bool ascending = true;
+    // find all local maximums
     for (int i = 1; i < width - 1; i++)
     {
         if (line[i] == 0)
@@ -165,31 +166,32 @@ void circle_to_rect_cpu(uint8_t* circle, uint8_t* rect, int radius, cv::Point ce
     }
 }
 
-void meterReader::minimum_coverage_circle(std::vector<cv::Point> &points, int &radius, cv::Point &center)
+void meterReader::minimum_coverage_circle(std::vector<cv::Point2f> points, int &radius, cv::Point &center)
 {
     std::random_shuffle(points.begin(), points.end());
     int n = points.size();
     float radius_f = 0; // use float instead of int to avoid error in calculation
-    center = points[0];
+    cv::Point2f center_f;
+    center_f = points[0];
     radius_f = 0;
 
     for (int i = 1; i < n; i++)
     {
-        if (cv::norm(points[i] - center) <= radius_f) // points[i] is not in circle
+        if (cv::norm(points[i] - center_f) <= radius_f) // points[i] is not in circle
             continue;
         
-        center = points[i];
+        center_f = points[i];
         radius_f = 0;
         for (int j = 0; j < i; j++)
         {
-            if (cv::norm(points[j] - center) <= radius_f) // points[j] is not in circle
+            if (cv::norm(points[j] - center_f) <= radius_f) // points[j] is not in circle
                 continue;
 
-            center = (points[i] + points[j]) / 2;
+            center_f = (points[i] + points[j]) / 2;
             radius_f = cv::norm(points[i] - points[j]) / 2;
             for (int k = 0; k < j; k++)
             {
-                if (cv::norm(points[k] - center) <= radius_f) // points[k] is not in circle
+                if (cv::norm(points[k] - center_f) <= radius_f) // points[k] is not in circle
                     continue;
                 
                 // calculate the center and radius of the circle passing through points i, j, k
@@ -200,13 +202,14 @@ void meterReader::minimum_coverage_circle(std::vector<cv::Point> &points, int &r
                 cv::Point2f v = cv::Point2f(-a.y, a.x); // vector perpendicular to AB
                 cv::Point2f w = cv::Point2f(-b.y, b.x); // vector perpendicular to AC
                 float t1 = w.cross(p - q) / v.cross(w); // t1 = (q - p) x w / v x w
-                center = p + t1 * v; // center = p + t1 * v
-                radius_f = cv::norm(points[i] - center);
+                center_f = p + t1 * v; // center = p + t1 * v
+                radius_f = cv::norm(points[i] - center_f);
             }
         }
     }
 
     radius = (int)radius_f;
+    center = cv::Point((int)center_f.x, (int)center_f.y);
 }
 
 void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<MeterInfo> &meters)
@@ -216,18 +219,17 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         cv::Mat mask_pointer = crops_meter[im].mask_pointer;
         cv::Mat mask_scale = crops_meter[im].mask_scale;
 
-        // cv::Mat edges;
-        // cv::Canny(mask_scale, edges, 50, 150);
-        // cv::imwrite("./edges.png", edges);
+        // cv::imwrite("./mask_scale_" + std::to_string(im) + ".png", mask_scale * 255);
+        // cv::imwrite("./mask_pointer_" + std::to_string(im) + ".png", mask_pointer * 255);
         
         std::vector<std::vector<cv::Point>> contours;
         std::vector<cv::Vec4i> hierarchy;
-        std::vector<cv::Point> points;
+        std::vector<cv::Point2f> points;
         cv::findContours(mask_scale, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);      
 
         // cv::Mat cnt_img = cv::Mat::zeros(mask_scale.size(), CV_8UC1);
         // cv::drawContours(cnt_img, contours, -1, cv::Scalar(255), 1);
-        // cv::imwrite("./contours.png", cnt_img);
+        // cv::imwrite("./contours_" + std::to_string(im) + ".png", cnt_img);
 
         for (int ic = 0; ic < contours.size(); ic++)
         {
@@ -244,11 +246,11 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         minimum_coverage_circle(points, radius, center);
         LOG(INFO) << "radius: " << radius << " center: " << center;
         
-        cv::Mat min_cov_cir = mask_scale + mask_pointer;
-        cv::circle(min_cov_cir, center, radius, cv::Scalar(255), 1);
-        cv::circle(min_cov_cir, center, radius - RECT_HEIGHT, cv::Scalar(255), 1);
-        cv::circle(min_cov_cir, center, 1, cv::Scalar(100), 1);
-        cv::imwrite("./circle.png", min_cov_cir);
+        // cv::Mat min_cov_cir = mask_scale * 255 + mask_pointer * 255;
+        // cv::circle(min_cov_cir, center, radius, cv::Scalar(255), 1);
+        // cv::circle(min_cov_cir, center, radius - RECT_HEIGHT, cv::Scalar(255), 1);
+        // cv::circle(min_cov_cir, center, 1, cv::Scalar(100), 1);
+        // cv::imwrite("./circle_" + std::to_string(im) + ".png", min_cov_cir);
 
         // auto t1 = clock();
         CUDA_CHECK(cudaMemcpy(d_circle_scale, mask_scale.data, mask_scale.rows * mask_scale.cols * sizeof(uint8_t), cudaMemcpyHostToDevice));
@@ -279,9 +281,8 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         // debug
         // cv::Mat rect_pointer_img = cv::Mat(RECT_HEIGHT, RECT_WIDTH, CV_8UC1, rect_pointer);
         // cv::Mat rect_scale_img = cv::Mat(RECT_HEIGHT, RECT_WIDTH, CV_8UC1, rect_scale);
-        // cv::imwrite("./rect_pointer.png", rect_pointer_img);
-        // cv::imwrite("./rect_scale.png", rect_scale_img);
-        // LOG_ASSERT(0) << "stop here";
+        // cv::imwrite("./rect_pointer_" + std::to_string(im) + ".png", rect_pointer_img * 255);
+        // cv::imwrite("./rect_scale_" + std::to_string(im) + ".png", rect_scale_img * 255);
 
         // CPU version
         // auto t1 = clock();
@@ -291,8 +292,8 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         // LOG(WARNING) << "rect_to_line_cpu time: " << (t2 - t1) * 1.0 / CLOCKS_PER_SEC * 1000 << " ms";
 
         // debug
-        for (int i = 0; i < RECT_WIDTH; i++) printf("%d ", line_pointer[i]); printf("\n\n");
-        for (int i = 0; i < RECT_WIDTH; i++) printf("%d ", line_scale[i]); printf("\n");
+        // for (int i = 0; i < RECT_WIDTH; i++) printf("%d ", line_pointer[i]); printf("\n\n");
+        // for (int i = 0; i < RECT_WIDTH; i++) printf("%d ", line_scale[i]); printf("\n");
 
         std::vector<float> pointer_location;
         std::vector<float> scale_location;
@@ -300,28 +301,38 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         line_to_location(line_pointer, pointer_location, RECT_WIDTH);
         line_to_location(line_scale, scale_location, RECT_WIDTH);
 
-        std::cout << "pointer: " << pointer_location.size() << std::endl;
-        for (int i = 0; i < pointer_location.size(); i++) printf("%f ", pointer_location[i]); printf("\n\n");
+        // std::cout << "pointer: " << pointer_location.size() << std::endl;
+        // for (int i = 0; i < pointer_location.size(); i++) printf("%f ", pointer_location[i]); printf("\n\n");
 
-        std::cout << "scale: " << scale_location.size() << std::endl;
-        for (int i = 0; i < scale_location.size(); i++) printf("%f ", scale_location[i]); printf("\n\n");
+        // std::cout << "scale: " << scale_location.size() << std::endl;
+        // for (int i = 0; i < scale_location.size(); i++) printf("%f ", scale_location[i]); printf("\n\n");
 
         float reading_percent = location_to_reading(pointer_location, scale_location);
-        float reading_number = reading_percent * METER_RANGES[0];
+        float reading_number = round(reading_percent * METER_RANGES[0] * 100) / 100;
         std::string meter_reading = std::to_string(reading_number) + " " + METER_UNITS[0];
 
         MeterInfo meter_info;
+        meter_info.rect = crops_meter[im].rect;
+        meter_info.det_batch_id = crops_meter[im].det_batch_id;
         meter_info.class_id = 0; // meter
         meter_info.class_name = "meter";
         meter_info.meter_id = im;
         meter_info.meter_reading = meter_reading;
         meters.push_back(meter_info);
 
-        LOG(WARNING) << meter_reading;
+        LOG(WARNING) << "meter_" + std::to_string(im) + ": " << meter_reading;
 
-        LOG_ASSERT(0) << " stop here";
+        // LOG_ASSERT(0) << " stop here";
         
     }
+}
+
+void read_water(std::vector<CropInfo> &crops_water, std::vector<MeterInfo> &meters)
+{
+    // for (int im = 0; im < crops_water.size(); im++)
+    // {
+    //     crops_water[im]
+    // }
 }
 
 void meterReader::read_number(std::vector<MeterInfo> &meters)
@@ -332,5 +343,6 @@ void meterReader::read_number(std::vector<MeterInfo> &meters)
         [](CropInfo a, CropInfo b) { return a.rect.x == b.rect.x? a.rect.y < b.rect.y: a.rect.x < b.rect.x;});
 
     read_meter(crops_meter, meters);
+   
     // read_water(crops_water, meters);
 }

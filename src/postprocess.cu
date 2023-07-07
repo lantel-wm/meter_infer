@@ -171,7 +171,5 @@ void Segment::processMask(std::vector<CropInfo> &crops)
 
         CUDA_CHECK(cudaFree(d_mask_in));
         CUDA_CHECK(cudaFree(d_mask_out));
-
-        ibatch++;
     }
 }

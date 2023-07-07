@@ -6,6 +6,7 @@ data/videos/*
 weights/*
 engines/*
 logs/*
+py_infer/*
 # vscode ================================
 .vscode/*
 !.vscode/settings.json

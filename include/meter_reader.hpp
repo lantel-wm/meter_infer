@@ -13,15 +13,19 @@ class meterReader
     private:
         Detect detect; // detector
         Segment segment; // segmenter
+
+        // TODO: use a 2d vector to store different kinds of meters
         std::vector<CropInfo> crops_meter; // cropped meter
         std::vector<CropInfo> crops_water; // cropped water
 
         void crop_meters(std::vector<FrameInfo> &frame_batch);
         void read_number(std::vector<MeterInfo> &meters);
-        void draw_boxes(std::vector<FrameInfo> &images); // draw the bounding box of the detected objects
+        void draw_boxes(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> meters); // draw the bounding box of the detected objects
 
         void read_meter(std::vector<CropInfo> &crops_meter, std::vector<MeterInfo> &meters);
-        void minimum_coverage_circle(std::vector<cv::Point> &points, int &radius, cv::Point &center);
+        void minimum_coverage_circle(std::vector<cv::Point2f> points, int &radius, cv::Point &center);
+
+        void read_water(std::vector<CropInfo> &crops_water, std::vector<MeterInfo> &meters);
 
         // arrays used in read_meter
         uint8_t* rect_scale;

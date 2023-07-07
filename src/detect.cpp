@@ -246,7 +246,7 @@ void Detect::nonMaxSuppression(std::vector<FrameInfo> &images, int batch_size)
         std::vector<DetObject> det_objs_nms; 
         std::sort(det_objs.begin(), det_objs.end(), [](DetObject &a, DetObject &b) { return a.conf > b.conf; });
 
-        DUMP_OBJ_INFO(det_objs);
+        // DUMP_OBJ_INFO(det_objs);
 
         while (det_objs.size() > 0)
         {
@@ -264,7 +264,7 @@ void Detect::nonMaxSuppression(std::vector<FrameInfo> &images, int batch_size)
             }
         }
 
-        DUMP_OBJ_INFO(det_objs_nms);
+        // DUMP_OBJ_INFO(det_objs_nms);
 
         images[l].det_objs = det_objs_nms;
 
@@ -284,7 +284,7 @@ void Detect::postprocess(std::vector<FrameInfo> &images)
 	float dw = this->affine_matrix.mat[2];
 	float dh = this->affine_matrix.mat[5];
 	float ratio = this->affine_matrix.inv_mat[0];
-    LOG(INFO) << "dw: " << dw << ", dh: " << dh << ", ratio: " << ratio;
+    // LOG(INFO) << "dw: " << dw << ", dh: " << dh << ", ratio: " << ratio;
 
     for (int i = 0; i < batch_size; i++)
     {
@@ -307,7 +307,7 @@ void Detect::postprocess(std::vector<FrameInfo> &images)
             float w = GET(output, i, 2, k, batch_size, det_length, num_dets);
             float h = GET(output, i, 3, k, batch_size, det_length, num_dets);
 
-            LOG(INFO) << "x: " << x << ", y: " << y << ", w: " << w << ", h: " << h;
+            // LOG(INFO) << "x: " << x << ", y: " << y << ", w: " << w << ", h: " << h;
 
             float x1 = (x - w / 2.f) - dw;
             float y1 = (y - h / 2.f) - dh;
@@ -319,7 +319,7 @@ void Detect::postprocess(std::vector<FrameInfo> &images)
             x2 = clamp(x2 * ratio, 0.f, this->image_width);
             y2 = clamp(y2 * ratio, 0.f, this->image_height);
 
-            LOG(INFO) << "x1: " << x1 << ", y1: " << y1 << ", x2: " << x2 << ", y2: " << y2;
+            // LOG(INFO) << "x1: " << x1 << ", y1: " << y1 << ", x2: " << x2 << ", y2: " << y2;
 
             DetObject det_obj;
             det_obj.rect = cv::Rect(x1, y1, x2 - x1, y2 - y1);
@@ -448,12 +448,12 @@ void Detect::copyFromMat(cv::Mat& nchw)
 void Detect::detect(std::vector<FrameInfo> &images)
 {
     // preprocess input
-    cv::Mat nchw;
-    auto t1 = clock();
+    // cv::Mat nchw;
+    // auto t1 = clock();
     // this->letterbox(image, nchw);
     this->preprocess(images);
-    auto t2 = clock();
-    LOG(WARNING) << "image processed in " << (t2 - t1) / 1000.0 << " ms";
+    // auto t2 = clock();
+    // LOG(WARNING) << "image processed in " << (t2 - t1) / 1000.0 << " ms";
 
     // // copy to device
     // t1 = clock();
@@ -462,14 +462,14 @@ void Detect::detect(std::vector<FrameInfo> &images)
     // LOG(WARNING) << "image copied to device in " << (t2 - t1) / 1000.0 << " ms";
 
     // run inference
-    t1 = clock();
+    // t1 = clock();
     this->infer();
-    t2 = clock();
-    LOG(WARNING) << "inference done in " << (t2 - t1) / 1000.0 << " ms";
+    // t2 = clock();
+    // LOG(WARNING) << "inference done in " << (t2 - t1) / 1000.0 << " ms";
 
     // postprocess output
-    t1 = clock();
+    // t1 = clock();
     this->postprocess(images);
-    t2 = clock();
-    LOG(WARNING) << "postprocess done in " << (t2 - t1) / 1000.0 << " ms";
+    // t2 = clock();
+    // LOG(WARNING) << "postprocess done in " << (t2 - t1) / 1000.0 << " ms";
 }

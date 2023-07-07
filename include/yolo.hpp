@@ -50,6 +50,7 @@ struct CropInfo
     cv::Mat mask_scale; // 160x160
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     int class_id;
+    int det_batch_id; // detection batch id
     std::vector<DetObject> det_objs; // scales or pointer or water level
 };
 
@@ -58,6 +59,7 @@ struct MeterInfo
     int meter_id; // meter identifier in the frame, sorted by the coordinate of the upperleft point
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     int class_id; // 0: meter, 1: water
+    int det_batch_id; // detection batch id
     std::string class_name; // meter, water
     std::string meter_reading; // e.g.: 2.3kPa, 66%
 };
