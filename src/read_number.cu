@@ -326,7 +326,9 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
 
         float reading_percent = location_to_reading(pointer_location, scale_location);
         float reading_number = round(reading_percent * METER_RANGES[0] * 100) / 100;
-        std::string meter_reading = std::to_string(reading_number) + " " + METER_UNITS[0];
+        // std::string meter_reading = std::to_string(reading_number) + " " + METER_UNITS[0];
+        char meter_reading[100];
+        sprintf(meter_reading, "%.2f %s", reading_number, METER_UNITS[0]);
 
         MeterInfo meter_info;
         meter_info.rect = crops_meter[im].rect;

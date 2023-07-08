@@ -4,9 +4,8 @@
 #include <fstream>
 #include <time.h>
 
-#include "glog/logging.h"
-#include "config.hpp"
 #include "common.hpp"
+#include "config.hpp"
 #include "yolo.hpp"
 
 Logger glogger_seg;

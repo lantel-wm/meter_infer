@@ -64,7 +64,8 @@
         "__split_buffer": "cpp",
         "__tree": "cpp",
         "queue": "cpp",
-        "stack": "cpp"
+        "stack": "cpp",
+        "filesystem": "cpp"
     },
     "cmake.sourceDirectory": "/home/zzy/meter_infer",
     "Notes.notesLocation": "~/.notes",
