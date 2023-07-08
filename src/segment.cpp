@@ -271,7 +271,6 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
             det_obj.batch_id = i;
             det_obj.class_id = class_id;
             det_obj.name = CLASS_NAMES2[class_id];
-            det_obj.mask_in = new float[32];
             for (int j = 0; j < 32; j++)
             {
                 det_obj.mask_in[j] = GET(output0, i, j + 4 + 2, k, batch_size, det_length, num_dets);

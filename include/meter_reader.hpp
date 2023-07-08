@@ -19,6 +19,7 @@ class meterReader
         std::vector<CropInfo> crops_water; // cropped water
 
         void crop_meters(std::vector<FrameInfo> &frame_batch);
+        void parse_meters(); // recognize the scales and pointers of the meters
         void read_number(std::vector<MeterInfo> &meters);
         void draw_boxes(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> meters); // draw the bounding box of the detected objects
 
@@ -27,15 +28,15 @@ class meterReader
 
         void read_water(std::vector<CropInfo> &crops_water, std::vector<MeterInfo> &meters);
 
-        // arrays used in read_meter
-        uint8_t* rect_scale;
-        uint8_t* rect_pointer;
-        uint8_t* d_rect_scale; // device pointer
-        uint8_t* d_rect_pointer; // device pointer
-        uint8_t* d_circle_scale; // device pointer
-        uint8_t* d_circle_pointer; // device pointer
-        int* line_pointer;
-        int* line_scale;
+        // // arrays used in read_meter
+        // uint8_t* rect_scale;
+        // uint8_t* rect_pointer;
+        // uint8_t* d_rect_scale; // device pointer
+        // uint8_t* d_rect_pointer; // device pointer
+        // uint8_t* d_circle_scale; // device pointer
+        // uint8_t* d_circle_pointer; // device pointer
+        // int* line_pointer;
+        // int* line_scale;
 
     public:
         meterReader(std::string const trt_model_det, std::string const trt_model_seg);

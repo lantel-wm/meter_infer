@@ -29,7 +29,7 @@ struct DetObject
     int class_id;
     float conf;
     float reading;
-    float* mask_in;
+    float mask_in[32];
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     cv::Mat mask; // 160x160 image, mask of the detected object
     std::string class_name;
@@ -50,7 +50,7 @@ struct CropInfo
     cv::Mat mask_scale; // 160x160
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     int class_id;
-    int det_batch_id; // detection batch id
+    int frame_batch_id; // frame batch id
     std::vector<DetObject> det_objs; // scales or pointer or water level
 };
 
@@ -59,7 +59,7 @@ struct MeterInfo
     int meter_id; // meter identifier in the frame, sorted by the coordinate of the upperleft point
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     int class_id; // 0: meter, 1: water
-    int det_batch_id; // detection batch id
+    int frame_batch_id; // frame batch id
     std::string class_name; // meter, water
     std::string meter_reading; // e.g.: 2.3kPa, 66%
 };
@@ -88,35 +88,47 @@ struct AffineMatrix
     // solve the M and IM matrix
     void compute(const cv::Size &src, const cv::Size &dst)
     {
-        float scale_x = dst.width / (float)src.width;
-        float scale_y = dst.height / (float)src.height;
+        // M = [
+        //     [scale, 0, dx],
+        //     [0, scale, dy]
+        // ]
 
-        float scale = MIN(scale_x, scale_y);
-        /*
-        M = [
-        scale,    0,     -scale * from.width  * 0.5 + to.width  * 0.5
-        0,     scale,    -scale * from.height * 0.5 + to.height * 0.5
-        ]
-        */
-        /*
-            - 0.5 is to make the center aligned.
-        */
-        mat[0] = scale;
-        mat[1] = 0;
-        mat[2] =
-            -scale * src.width * 0.5 + dst.width * 0.5 + scale * 0.5 - 0.5;
+        // M_inv = [
+        //     [1/scale, 0, -dx/scale],
+        //     [0, 1/scale, -dy/scale]
+        // ]
+        float w = src.width;
+        float h = src.height;
+        float W = dst.width;
+        float H = dst.height;
+        float scale, dx, dy;
 
-        mat[3] = 0;
-        mat[4] = scale;
-        mat[5] =
-            -scale * src.height * 0.5 + dst.height * 0.5 + scale * 0.5 - 0.5;
+        if (w >= h)
+        {
+            scale = W / w;
+            dx = 0;
+            dy = (H - h * scale) * 0.5;
+        }
+        else
+        {
+            scale = H / h;
+            dx = (W - w * scale) * 0.5;
+            dy = 0;
+        }
 
-        inv_mat[0] = 1 / mat[0];
-        inv_mat[1] = 0;
-        inv_mat[2] = -mat[2] / mat[0];
-        inv_mat[3] = 0;
-        inv_mat[4] = 1 / mat[4];
-        inv_mat[5] = -mat[5] / mat[4];
+        mat[0] = scale; // m00
+        mat[1] = 0;     // m01
+        mat[2] = dx;    // m02
+        mat[3] = 0;     // m10
+        mat[4] = scale; // m11
+        mat[5] = dy;    // m12
+
+        inv_mat[0] = 1 / scale;    // m00
+        inv_mat[1] = 0;            // m01
+        inv_mat[2] = -dx / scale;  // m02
+        inv_mat[3] = 0;            // m10
+        inv_mat[4] = 1 / scale;    // m11
+        inv_mat[5] = -dy / scale;  // m12
     }
 };
 

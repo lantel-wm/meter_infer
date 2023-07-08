@@ -21,8 +21,8 @@ int main(int argc, char **argv)
     // cv::waitKey(0);
     // exit(0);
     
-    google::InitGoogleLogging(argv[0]);
-    FLAGS_stderrthreshold = google::WARNING;
+    InitGoogleLogging(argv[0]);
+    FLAGS_stderrthreshold = WARNING;
     FLAGS_log_dir = LOG_PATH;
 
     LOG(INFO) << "program started";
@@ -30,9 +30,9 @@ int main(int argc, char **argv)
     // init meter reader
     meterReader meter_reader("yolov8n_batch8.trt", "yolov8s-seg_batch8.trt");
     
-    Stream stream(IMAGE_PATH + "60.png");
+    // Stream stream(IMAGE_PATH + "60.png");
     // Stream stream(IMAGE_PATH + "23.jpg");
-    // Stream stream(VIDEO_PATH + "201.mp4");
+    Stream stream(VIDEO_PATH + "201.mp4");
 
     std::vector<MeterInfo> meters;
 
@@ -60,6 +60,7 @@ int main(int argc, char **argv)
         auto t1 = clock();
         meter_reader.read(frame_batch, meters);
         auto t2 = clock();
+        // printf("read time: %fms\n", (t2 - t1) / 1000.0);
         LOG(WARNING) << "read time: " << (t2 - t1) / 1000.0 << "ms";
         LOG(WARNING) << "------------------------------------------------------";
     }

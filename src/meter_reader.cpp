@@ -37,28 +37,28 @@ meterReader::meterReader(std::string const trt_model_det, std::string const trt_
     segment.engineInfo();
     LOG(INFO) << "segmenter loaded";
 
-    rect_scale = new uint8_t[RECT_WIDTH * RECT_HEIGHT]; // 360 * 40
-    rect_pointer = new uint8_t[RECT_WIDTH * RECT_HEIGHT]; // 360 * 40
-    line_scale = new int[RECT_WIDTH]; // 512
-    line_pointer = new int[RECT_WIDTH]; // 512
+    // rect_scale = new uint8_t[RECT_WIDTH * RECT_HEIGHT]; // 360 * 40
+    // rect_pointer = new uint8_t[RECT_WIDTH * RECT_HEIGHT]; // 360 * 40
+    // line_scale = new int[RECT_WIDTH]; // 512
+    // line_pointer = new int[RECT_WIDTH]; // 512
 
-    CUDA_CHECK(cudaMalloc((void**)&d_rect_scale, RECT_WIDTH * RECT_HEIGHT * sizeof(uint8_t)));
-    CUDA_CHECK(cudaMalloc((void**)&d_rect_pointer, RECT_WIDTH * RECT_HEIGHT * sizeof(uint8_t)));
-    CUDA_CHECK(cudaMalloc((void**)&d_circle_scale, CIRCLE_WIDTH * CIRCLE_HEIGHT * sizeof(uint8_t)));
-    CUDA_CHECK(cudaMalloc((void**)&d_circle_pointer, CIRCLE_WIDTH * CIRCLE_HEIGHT * sizeof(uint8_t)));
+    // CUDA_CHECK(cudaMalloc((void**)&d_rect_scale, RECT_WIDTH * RECT_HEIGHT * sizeof(uint8_t)));
+    // CUDA_CHECK(cudaMalloc((void**)&d_rect_pointer, RECT_WIDTH * RECT_HEIGHT * sizeof(uint8_t)));
+    // CUDA_CHECK(cudaMalloc((void**)&d_circle_scale, CIRCLE_WIDTH * CIRCLE_HEIGHT * sizeof(uint8_t)));
+    // CUDA_CHECK(cudaMalloc((void**)&d_circle_pointer, CIRCLE_WIDTH * CIRCLE_HEIGHT * sizeof(uint8_t)));
 
 }
 
 meterReader::~meterReader()
 {
-    delete[] rect_scale;
-    delete[] rect_pointer;
-    delete[] line_scale;
-    delete[] line_pointer;
-    CUDA_CHECK(cudaFree(d_rect_scale));
-    CUDA_CHECK(cudaFree(d_rect_pointer));
-    CUDA_CHECK(cudaFree(d_circle_scale));
-    CUDA_CHECK(cudaFree(d_circle_pointer));
+    // delete[] rect_scale;
+    // delete[] rect_pointer;
+    // delete[] line_scale;
+    // delete[] line_pointer;
+    // CUDA_CHECK(cudaFree(d_rect_scale));
+    // CUDA_CHECK(cudaFree(d_rect_pointer));
+    // CUDA_CHECK(cudaFree(d_circle_scale));
+    // CUDA_CHECK(cudaFree(d_circle_pointer));
 }
 
 void meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters)
@@ -67,6 +67,8 @@ void meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInf
     crop_meters(frame_batch);
     // auto t2 = clock();
     // LOG(WARNING) << "crop_meters time: " << (t2 - t1) / 1000.0 << "ms";
+
+    parse_meters();
 
     read_number(meters);
 
@@ -92,10 +94,9 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
         for (auto &obj : frame_info.det_objs)
         {
             CropInfo crop_info;
-            cv::Mat crop = frame_info.frame(obj.rect);
-            crop_info.crop = crop;
+            frame_info.frame(obj.rect).copyTo(crop_info.crop);
             crop_info.class_id = obj.class_id;
-            crop_info.det_batch_id = ibatch;
+            crop_info.frame_batch_id = ibatch;
             crop_info.rect = obj.rect;
             if (crop_info.class_id == 0) // meter
             {
@@ -108,7 +109,11 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
         }
     }
     // view_crops(crops_meter, crops_water);
+    // LOG_ASSERT(0) << " stop here";
+}
 
+void meterReader::parse_meters()
+{
     // meter segmentation
     // break the crops into batches of 8
     for (int i = 0; i < crops_meter.size(); i += 8)
@@ -118,10 +123,10 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
         std::vector<CropInfo> crops_meter_batch;
         crops_meter_batch.assign(first, last);
         int batch_size = crops_meter_batch.size();
-        LOG(INFO) << "segmenting " << crops_meter_batch.size() << " crops";
-        // t1 = clock();
+        // LOG(INFO) << "segmenting " << crops_meter_batch.size() << " crops";
+        // auto t1 = clock();
         segment.segment(crops_meter_batch);
-        // t2 = clock();
+        // auto t2 = clock();
         // LOG(WARNING) << "segmentation time: " << (t2 - t1) / 1000.0 << "ms";
         for (int j = 0; j < batch_size; j++)
         {
@@ -156,19 +161,18 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
             crops_water[i + j].det_objs = crops_water_batch[j].det_objs;
         }
 
-        cv::Mat water_det = crops_water[i].crop.clone();
-        for (auto &obj : crops_water[i].det_objs)
-        {
-            cv::rectangle(water_det, obj.rect, cv::Scalar(0, 0, 255), 2);
-        }
-        cv::imwrite("water_det.png", water_det);
-        LOG_ASSERT(0) << " stop here";
+        // cv::Mat water_det = crops_water[i].crop.clone();
+        // for (auto &obj : crops_water[i].det_objs)
+        // {
+        //     cv::rectangle(water_det, obj.rect, cv::Scalar(0, 0, 255), 2);
+        // }
+        // cv::imwrite("water_det.png", water_det);
+        // LOG_ASSERT(0) << " stop here";
     }
 
     // cv::imwrite("mask_pointer.png", crops_meter[0].mask_pointer);
     // cv::imwrite("mask_scale.png", crops_meter[0].mask_scale);
 
-    // LOG_ASSERT(0) << " stop here";
 }
 
 void meterReader::draw_boxes(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> meters)
@@ -193,7 +197,7 @@ void meterReader::draw_boxes(std::vector<FrameInfo> &frame_batch, std::vector<Me
 
         for (auto &meter_info: meters)
         {
-            if (meter_info.det_batch_id != ibatch)
+            if (meter_info.frame_batch_id != ibatch)
                 continue;
             
             std::string display_text = meter_info.class_name + " " + meter_info.meter_reading;

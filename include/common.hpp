@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 
+// #define GOOGLE_STRIP_LOG 8
 #include "glog/logging.h"
 
 using namespace nvinfer1;
@@ -136,6 +137,7 @@ inline void view_device_input_img_batch(uint8_t* d_ptr, int n, int c, int h, int
             }
         }
     }
+    delete[] h_ptr;
     cv::imwrite(name + ".jpg", img);
     LOG(INFO) << "device image" << name << "saved";
 }
@@ -167,6 +169,7 @@ inline void view_device_batch_img(float* d_ptr, int n, int c, int w, int h, std:
             }
         }
     }
+    delete[] h_ptr;
     cv::imwrite(name + ".jpg", img);
     LOG(INFO) << "device batch image" << name << "saved";
 }
@@ -192,6 +195,7 @@ inline void view_proto(float* d_ptr)
         char proto_savepath[20];
         sprintf(proto_savepath, "./proto/proto_%d.jpg", ipro);
         cv::imwrite(proto_savepath, img);
+        delete[] h_ptr;
     }
 }
 

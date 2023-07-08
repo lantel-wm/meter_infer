@@ -169,6 +169,7 @@ void Segment::processMask(std::vector<CropInfo> &crops)
         // cv::imwrite("./mask_scale.png", crops[ibatch].mask_scale);
         // cv::imwrite("./mask_pointer.png", crops[ibatch].mask_pointer);
 
+        delete[] mask_out;
         CUDA_CHECK(cudaFree(d_mask_in));
         CUDA_CHECK(cudaFree(d_mask_out));
     }

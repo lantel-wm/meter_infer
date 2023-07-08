@@ -5,11 +5,10 @@
 #include <math.h>
 #include <iostream>
 
-#include "glog/logging.h"
+#include "common.hpp"
 #include "meter_reader.hpp"
 #include "yolo.hpp"
 #include "config.hpp"
-#include "common.hpp"
 
 #define PI 3.1415926f
 
@@ -214,6 +213,15 @@ void meterReader::minimum_coverage_circle(std::vector<cv::Point2f> points, int &
 
 void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<MeterInfo> &meters)
 {
+    uint8_t* rect_scale;
+    uint8_t* rect_pointer;
+    uint8_t* d_rect_scale; // device pointer
+    uint8_t* d_rect_pointer; // device pointer
+    uint8_t* d_circle_scale; // device pointer
+    uint8_t* d_circle_pointer; // device pointer
+    int* line_pointer;
+    int* line_scale;
+
     for (int im = 0; im < crops_meter.size(); im++)
     {
         cv::Mat mask_pointer = crops_meter[im].mask_pointer;
@@ -253,6 +261,15 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         // cv::imwrite("./circle_" + std::to_string(im) + ".png", min_cov_cir);
 
         // auto t1 = clock();
+        rect_scale = new uint8_t[RECT_WIDTH * RECT_HEIGHT]; // 360 * 40
+        rect_pointer = new uint8_t[RECT_WIDTH * RECT_HEIGHT]; // 360 * 40
+        line_scale = new int[RECT_WIDTH]; // 512
+        line_pointer = new int[RECT_WIDTH]; // 512
+        CUDA_CHECK(cudaMalloc((void**)&d_rect_scale, RECT_WIDTH * RECT_HEIGHT * sizeof(uint8_t)));
+        CUDA_CHECK(cudaMalloc((void**)&d_rect_pointer, RECT_WIDTH * RECT_HEIGHT * sizeof(uint8_t)));
+        CUDA_CHECK(cudaMalloc((void**)&d_circle_scale, CIRCLE_WIDTH * CIRCLE_HEIGHT * sizeof(uint8_t)));
+        CUDA_CHECK(cudaMalloc((void**)&d_circle_pointer, CIRCLE_WIDTH * CIRCLE_HEIGHT * sizeof(uint8_t)));
+
         CUDA_CHECK(cudaMemcpy(d_circle_scale, mask_scale.data, mask_scale.rows * mask_scale.cols * sizeof(uint8_t), cudaMemcpyHostToDevice));
         CUDA_CHECK(cudaMemcpy(d_circle_pointer, mask_pointer.data, mask_pointer.rows * mask_pointer.cols * sizeof(uint8_t), cudaMemcpyHostToDevice));
 
@@ -313,7 +330,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
 
         MeterInfo meter_info;
         meter_info.rect = crops_meter[im].rect;
-        meter_info.det_batch_id = crops_meter[im].det_batch_id;
+        meter_info.frame_batch_id = crops_meter[im].frame_batch_id;
         meter_info.class_id = 0; // meter
         meter_info.class_name = "meter";
         meter_info.meter_id = im;
@@ -322,17 +339,44 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
 
         LOG(WARNING) << "meter_" + std::to_string(im) + ": " << meter_reading;
 
+        // free memory
+        CUDA_CHECK(cudaFree(d_circle_pointer));
+        CUDA_CHECK(cudaFree(d_rect_pointer));
+        CUDA_CHECK(cudaFree(d_circle_scale));
+        CUDA_CHECK(cudaFree(d_rect_scale));
+        delete[] rect_pointer;
+        delete[] rect_scale;
+        delete[] line_pointer;
+        delete[] line_scale;
+
         // LOG_ASSERT(0) << " stop here";
         
     }
 }
 
-void read_water(std::vector<CropInfo> &crops_water, std::vector<MeterInfo> &meters)
+void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<MeterInfo> &meters)
 {
-    // for (int im = 0; im < crops_water.size(); im++)
-    // {
-    //     crops_water[im]
-    // }
+    for (int im = 0; im < crops_water.size(); im++)
+    {
+        cv::Rect level_bbox = crops_water[im].det_objs[0].rect;
+        float level_location = (level_bbox.y + level_bbox.height / 2.0) / crops_water[im].rect.height;
+        int level_percent = 100 - round(level_location * 100);
+
+        LOG(INFO) << "level_bbox: " << level_bbox.x << " " << level_bbox.y << " " << level_bbox.width << " " << level_bbox.height;
+        LOG(INFO) << "level_location: " << level_location;
+
+        MeterInfo meter_info;
+        meter_info.rect = crops_water[im].rect;
+        meter_info.frame_batch_id = crops_water[im].frame_batch_id;
+        meter_info.class_id = 1; // water
+        meter_info.class_name = "water";
+        meter_info.meter_id = im;
+        meter_info.meter_reading = std::to_string(level_percent) + " %";
+        meters.push_back(meter_info);
+
+        LOG(WARNING) << "water_" + std::to_string(im) + ": " << level_percent << "%";
+
+    }
 }
 
 void meterReader::read_number(std::vector<MeterInfo> &meters)
@@ -344,5 +388,5 @@ void meterReader::read_number(std::vector<MeterInfo> &meters)
 
     read_meter(crops_meter, meters);
    
-    // read_water(crops_water, meters);
+    read_water(crops_water, meters);
 }

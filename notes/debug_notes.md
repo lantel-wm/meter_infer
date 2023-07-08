@@ -37,3 +37,24 @@ blobFromImage<<<grid2, block2>>>(
 
 modify block2 to (16, 16, 3), the kernel will launch.
 
+## 20230708
+
+opencv:
+
+When cropping a rectangle area if an images, you should use this:
+
+~~~
+cv::Mat img;
+cv::Mat crop;
+cv::Rect rect;
+
+img(rect).copyTo(crop);
+~~~
+
+instead of:
+
+~~~
+crop = img(rect);
+~~~
+
+The latter would cause bugs.
