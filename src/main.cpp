@@ -23,11 +23,16 @@ int main(int argc, char **argv)
     
     FLAGS_stderrthreshold = WARNING;
     FLAGS_log_dir = LOG_PATH;
-    FLAGS_minloglevel = ERROR;
+    // FLAGS_minloglevel = WARNING;
     FLAGS_logbuflevel = ERROR;
     InitGoogleLogging(argv[0]);
+
     
     LOG(INFO) << "program started";
+
+    // sleep(10);
+    // exit(0);
+    
 
     cmdline::parser parser;
     parser.add<int>("num_cam", 'n', "number of cameras", false, 8, cmdline::range(1, 8));
@@ -81,8 +86,14 @@ int main(int argc, char **argv)
         meter_reader.read(frame_batch, meters);
         auto t2 = clock();
         // printf("read time: %fms\n", (t2 - t1) / 1000.0);
+
+        LOG(INFO) << "meters: " << meters.size();
+        for (auto &meter : meters)
+        {
+            meter.dump();
+        }
+
         LOG(WARNING) << "read time: " << (t2 - t1) / 1000.0 << "ms";
-        LOG(WARNING) << "------------------------------------------------------";
     }
     return 0;
 }

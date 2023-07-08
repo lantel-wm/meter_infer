@@ -62,6 +62,11 @@ struct MeterInfo
     int frame_batch_id; // frame batch id
     std::string class_name; // meter, water
     std::string meter_reading; // e.g.: 2.3kPa, 66%
+
+    void dump()
+    {
+        LOG(INFO) << "In camera " << frame_batch_id << ", " << meter_id << "th " << class_name << " is " << meter_reading << " at " << rect;
+    }
 };
 
 // logger used in TensorRT

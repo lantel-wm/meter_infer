@@ -221,6 +221,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
     uint8_t* d_circle_pointer; // device pointer
     int* line_pointer;
     int* line_scale;
+    std::vector<int> meter_ids(crops_meter.size(), 0);
 
     for (int im = 0; im < crops_meter.size(); im++)
     {
@@ -335,11 +336,11 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         meter_info.frame_batch_id = crops_meter[im].frame_batch_id;
         meter_info.class_id = 0; // meter
         meter_info.class_name = "meter";
-        meter_info.meter_id = im;
+        meter_info.meter_id = meter_ids[im]++;
         meter_info.meter_reading = meter_reading;
         meters.push_back(meter_info);
 
-        LOG(WARNING) << "meter_" + std::to_string(im) + ": " << meter_reading;
+        // LOG(WARNING) << "meter_" + std::to_string(im) + ": " << meter_reading;
 
         // free memory
         CUDA_CHECK(cudaFree(d_circle_pointer));
@@ -358,6 +359,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
 
 void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<MeterInfo> &meters)
 {
+    std::vector<int> meter_ids(crops_meter.size(), 0);
     for (int im = 0; im < crops_water.size(); im++)
     {
         cv::Rect level_bbox = crops_water[im].det_objs[0].rect;
@@ -372,11 +374,11 @@ void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<Met
         meter_info.frame_batch_id = crops_water[im].frame_batch_id;
         meter_info.class_id = 1; // water
         meter_info.class_name = "water";
-        meter_info.meter_id = im;
+        meter_info.meter_id = meter_ids[im]++;
         meter_info.meter_reading = std::to_string(level_percent) + " %";
         meters.push_back(meter_info);
 
-        LOG(WARNING) << "water_" + std::to_string(im) + ": " << level_percent << "%";
+        // LOG(WARNING) << "water_" + std::to_string(im) + ": " << level_percent << "%";
 
     }
 }

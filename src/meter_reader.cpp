@@ -63,6 +63,7 @@ meterReader::~meterReader()
 
 void meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters)
 {
+    meters.clear();
     // auto t1 = clock();
     crop_meters(frame_batch);
     // auto t2 = clock();
