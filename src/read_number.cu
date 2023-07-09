@@ -340,7 +340,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         meter_info.meter_reading = meter_reading;
         meters.push_back(meter_info);
 
-        // LOG(WARNING) << "meter_" + std::to_string(im) + ": " << meter_reading;
+        LOG(INFO) << "meter_" + std::to_string(im) + ": " << meter_reading;
 
         // free memory
         CUDA_CHECK(cudaFree(d_circle_pointer));
@@ -378,7 +378,7 @@ void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<Met
         meter_info.meter_reading = std::to_string(level_percent) + " %";
         meters.push_back(meter_info);
 
-        // LOG(WARNING) << "water_" + std::to_string(im) + ": " << level_percent << "%";
+        LOG(INFO) << "water_" + std::to_string(im) + ": " << level_percent << "%";
 
     }
 }

@@ -1,13 +1,18 @@
 #include <opencv2/opencv.hpp>
+#include "yolo.hpp"
 #include "common.hpp"
 #include "pro_con.hpp"
 #include "meter_reader.hpp"
-#include "yolo.hpp"
+
 #include "config.hpp"
 
 void merge_frames(std::vector<cv::Mat> frames, cv::Mat &display_frame)
 {
-    if (frames.size() == 2)
+    if (frames.size() == 1)
+    {
+        display_frame = frames[0];
+    }
+    else if (frames.size() == 2)
     {
         cv::hconcat(frames[0], frames[1], display_frame);
     }
@@ -94,12 +99,27 @@ void merge_frames(std::vector<cv::Mat> frames, cv::Mat &display_frame)
     }
 }
 
-void draw_boxes()
+void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
 {
-    std::string display_text = meter_info.class_name + " " + meter_info.meter_reading;
-    cv::Scalar color = COLORS[meter_info.class_id];
-    cv::rectangle(frame_info.frame, meter_info.rect, color, 2);
-    cv::putText(frame_info.frame, display_text, cv::Point(meter_info.rect.x, meter_info.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
+    LOG(INFO) << "displaying " << meters.size() << " meters";
+    for (auto &meter_info: meters)
+    {
+        LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
+    }
+    
+    for (int ibatch = 0; ibatch < frames.size(); ibatch++)
+    {   
+        for (auto &meter_info: meters)
+        {
+            if (meter_info.frame_batch_id != ibatch)
+                continue;
+            
+            std::string display_text = meter_info.class_name + " " + meter_info.meter_reading;
+            cv::Scalar color = COLORS[meter_info.class_id];
+            cv::rectangle(frames[ibatch], meter_info.rect, color, 4);
+            cv::putText(frames[ibatch], display_text, cv::Point(meter_info.rect.x, meter_info.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
+        }
+    }
 }
 
 void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_url, int thread_id) {
@@ -107,13 +127,15 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
     int retry = 5;
 
     // retry 5 times
-    while (!cap.isOpened() && retry > 0) {
+    while (!cap.isOpened() && retry > 0) 
+    {
         LOG(WARNING) << "Failed to open stream: " << stream_url << ", retrying in 1s ..." << std::endl;
         cap.open(stream_url);
         retry--;
     }
 
-    if (!cap.isOpened()) {
+    if (!cap.isOpened()) 
+    {
         LOG(WARNING) << "Failed to open stream: " << stream_url << "after retrying " 
             << retry << " times, exiting thread " << thread_id << " ...";
         return;
@@ -124,6 +146,8 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
     std::chrono::milliseconds frameInterval(static_cast<int>(1000.0 / fps));
     std::chrono::steady_clock::time_point lastFrameTime = std::chrono::steady_clock::now();
     std::vector<cv::Mat> frames(pc.GetNumBuffer());
+
+    LOG(INFO) << "Thread " << thread_id << " started, stream url: " << stream_url << ", fps: " << fps;
 
     while (cap.read(frame))
     {
@@ -138,7 +162,8 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
         std::chrono::steady_clock::time_point currentFrameTime = std::chrono::steady_clock::now();
         std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentFrameTime - lastFrameTime);
         std::chrono::milliseconds remaining = frameInterval - elapsed;
-        if (remaining > std::chrono::milliseconds::zero()) {
+        if (remaining > std::chrono::milliseconds::zero())
+        {
             std::this_thread::sleep_for(remaining);
         }
 
@@ -148,10 +173,9 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
     pc.Stop();
 }
 
-void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters, 
-    int det_batch, int seg_batch, std::string det_model, std::string seg_model) 
+void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer, 
+    int det_batch, int seg_batch, meterReader &meter_reader)
 {
-    meterReader meter_reader(det_model, seg_model);
     while (true) 
     {
         std::vector<FrameInfo> frame_batch;
@@ -164,17 +188,20 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
             frame_batch.push_back(frame_info);
         }
 
-        if (frame_batch.empty()) {
-            break;
-        }
-
         // do something with frame
+        std::vector<MeterInfo> meters;
         meter_reader.read(frame_batch, meters);
+        meters_buffer = meters;
+        LOG(INFO) <<  meters_buffer.size() << " meters detected";
+        for (auto &meter_info: meters_buffer)
+        {
+            LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
+        }
     }
 }
 
-void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> meters
-) {
+void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer) 
+{
     cv::namedWindow("Display", cv::WINDOW_NORMAL);
 
     int fps = 30;
@@ -182,12 +209,13 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> meter
     std::chrono::steady_clock::time_point lastFrameTime = std::chrono::steady_clock::now();
     std::vector<cv::Mat> frames(pc.GetNumBuffer());
 
-    std::vector<int> display_result;
+    std::vector<MeterInfo> display_result;
 
     while (true) 
     {
         FrameInfo frame_info;
         bool all_empty = true;
+        // read all frames in sequence of thread_id
         for (int thread_id = 0; thread_id < pc.GetNumBuffer(); thread_id++) 
         {
             if (!pc.Read(frame_info, thread_id))
@@ -200,19 +228,24 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> meter
         
 
         if (all_empty) {
-            std::cout << "Display thread exit" << std::endl;
+            LOG(WARNING) << "all frames are empty, exiting display thread ...";
             break;
         }
 
+        // update display result
         std::unique_lock<std::mutex> lock(pc.GetMutex());
-        display_result = meters;
+        display_result = meters_buffer;
         lock.unlock();
 
-        for (int thread_id = 0; thread_id < pc.GetNumBuffer(); thread_id++) 
+        LOG(INFO) << "meters in display thread: "  << meters_buffer.size();
+        for (auto &meter_info: meters_buffer)
         {
-            draw_boxes(frames[thread_id], display_result[thread_id]);
+            LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
         }
 
+        // draw all boxes in all frames
+        draw_boxes(frames, display_result);
+        
         cv::Mat display_frame;
         merge_frames(frames, display_frame);
 
@@ -232,20 +265,11 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> meter
     cv::destroyAllWindows();
 }
 
-void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int det_batch, int seg_batch) 
+void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int det_batch, int seg_batch, std::string det_model, std::string seg_model) 
 {
-    std::vector<MeterInfo> meters(num_cam);
-
-    std::vector<std::string> stream_urls = {
-        "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4",
-        // "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4",
-        // "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4",
-        // "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4"
-    };
+    meterReader meter_reader(det_model, seg_model);
+    
+    std::vector<MeterInfo> meters_buffer(num_cam);
     
     ProducerConsumer<FrameInfo> pc(capacity, num_cam);
 
@@ -257,8 +281,8 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
         producers.emplace_back(ProducerThread, std::ref(pc), stream_urls[thread_id], thread_id);
     }
 
-    std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters), int det_batch, int seg_batch);
-    std::thread display(DisplayThread, std::ref(pc), std::ref(meters));
+    std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader));
+    std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer));
     
     for (auto& producer : producers) 
     {

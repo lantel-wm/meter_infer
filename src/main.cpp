@@ -7,7 +7,7 @@
 
 #include "common.hpp"
 #include "cmdline.hpp"
-#include "stream.hpp"
+#include "pro_con.hpp"
 #include "meter_reader.hpp"
 #include "yolo.hpp"
 #include "config.hpp"
@@ -51,49 +51,22 @@ int main(int argc, char **argv)
     int seg_batch = parser.get<int>("seg_batch");
     std::string source = parser.get<std::string>("source");
 
+    std::vector<std::string> stream_urls = {
+        "/home/zzy/cublas_test/data/201.mp4", 
+        // "/home/zzy/cublas_test/data/201.mp4",
+        // "/home/zzy/cublas_test/data/201.mp4", 
+        // "/home/zzy/cublas_test/data/201.mp4",
+        // "/home/zzy/cublas_test/data/201.mp4", 
+        // "/home/zzy/cublas_test/data/201.mp4",
+        // "/home/zzy/cublas_test/data/201.mp4", 
+        // "/home/zzy/cublas_test/data/201.mp4"
+    };
+
     // init meter reader
     std::string det_model = "yolov8n_batch" + std::to_string(det_batch) + ".trt";
     std::string seg_model = "yolov8s-seg_batch" + std::to_string(seg_batch) + ".trt";
-    meterReader meter_reader(det_model, seg_model);
     
-    // Stream stream(IMAGE_PATH + "60.png");
-    // Stream stream(IMAGE_PATH + "23.jpg");
-    Stream stream(VIDEO_PATH + "201.mp4");
-
-    std::vector<MeterInfo> meters;
-
-    // get frame batch
-    while (stream.is_open())
-    {
-        std::vector<FrameInfo> frame_batch; // stores num_cam frames
-        cv::Mat frame;
-
-        stream.get_frame(frame);
-        if (frame.empty())
-        {
-            LOG(WARNING) << "empty frame";
-            continue;
-        }
-
-        for (int i = 0; i < num_cam; i++)
-        {
-            FrameInfo frame_info;
-            frame_info.frame = frame;
-            frame_batch.push_back(frame_info);        
-        }
-
-        auto t1 = clock();
-        meter_reader.read(frame_batch, meters);
-        auto t2 = clock();
-        // printf("read time: %fms\n", (t2 - t1) / 1000.0);
-
-        LOG(INFO) << "meters: " << meters.size();
-        for (auto &meter : meters)
-        {
-            meter.dump();
-        }
-
-        LOG(WARNING) << "read time: " << (t2 - t1) / 1000.0 << "ms";
-    }
+    run(num_cam, num_cam * 4, stream_urls, det_batch, seg_batch, det_model, seg_model);
+    
     return 0;
 }

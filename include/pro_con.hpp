@@ -7,7 +7,10 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include "yolo.hpp"
+#include "meter_reader.hpp"
 
+void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int det_batch, int seg_batch, std::string det_model, std::string seg_model);
 
 template<typename T>
 class ProducerConsumer 
