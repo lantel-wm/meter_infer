@@ -170,7 +170,7 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
         // update last frame time
         lastFrameTime = currentFrameTime;
     }
-    pc.Stop();
+    pc.Stop(thread_id);
 }
 
 void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer, 
@@ -178,6 +178,11 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
 {
     while (true) 
     {
+        if (pc.IsStopped()) 
+        {
+            LOG(WARNING) << "meter reader thread stopped";
+            break;
+        }
         std::vector<FrameInfo> frame_batch;
         for (int ibatch = 0; ibatch < det_batch; ibatch++)
         {
@@ -190,9 +195,17 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
 
         // do something with frame
         std::vector<MeterInfo> meters;
+        auto t1 = std::chrono::high_resolution_clock::now();
         meter_reader.read(frame_batch, meters);
+        auto t2 = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+        
+        LOG(WARNING) << "meter reading time: " << duration << " ms";
+
         meters_buffer = meters;
+
         LOG(INFO) <<  meters_buffer.size() << " meters detected";
+
         for (auto &meter_info: meters_buffer)
         {
             LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
@@ -265,6 +278,13 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
     cv::destroyAllWindows();
 }
 
+// num_cam: number of cameras
+// capacity: capacity of the buffer
+// stream_urls: vector of stream urls
+// det_batch: batch size for detection
+// seg_batch: batch size for segmentation
+// det_model: path to detection model
+// seg_model: path to segmentation model
 void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int det_batch, int seg_batch, std::string det_model, std::string seg_model) 
 {
     meterReader meter_reader(det_model, seg_model);

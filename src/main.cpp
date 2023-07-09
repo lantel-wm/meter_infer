@@ -30,10 +30,6 @@ int main(int argc, char **argv)
     
     LOG(INFO) << "program started";
 
-    // sleep(10);
-    // exit(0);
-    
-
     cmdline::parser parser;
     parser.add<int>("num_cam", 'n', "number of cameras", false, 8, cmdline::range(1, 8));
     parser.add<int>("det_batch", 'd', "batch size of detector", false, 8, cmdline::oneof<int>(1, 2, 4, 8));
@@ -53,14 +49,20 @@ int main(int argc, char **argv)
 
     std::vector<std::string> stream_urls = {
         "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4",
-        // "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4",
-        // "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4",
-        // "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4"
+        "/home/zzy/cublas_test/data/201.mp4",
+        "/home/zzy/cublas_test/data/201.mp4", 
+        "/home/zzy/cublas_test/data/201.mp4",
+        "/home/zzy/cublas_test/data/201.mp4", 
+        "/home/zzy/cublas_test/data/201.mp4",
+        "/home/zzy/cublas_test/data/201.mp4", 
+        "/home/zzy/cublas_test/data/201.mp4"
     };
+
+    if (stream_urls.size() != num_cam)
+    {
+        LOG(ERROR) << "number of stream urls not equal to number of cameras";
+        exit(1);
+    }
 
     // init meter reader
     std::string det_model = "yolov8n_batch" + std::to_string(det_batch) + ".trt";

@@ -182,7 +182,7 @@ __global__ void blobFromImage(uint8_t *input, float *output, int h, int w, int c
 void Detect::preprocess(std::vector<FrameInfo> &images)
 {
     int batch_size = images.size();
-    LOG_ASSERT(batch_size) << "images is empty";
+    LOG_ASSERT(batch_size) << " images is empty";
 
     uint8_t *d_ptr_src;                                                 // device pointer for src image
     uint8_t *d_ptr_dst;                                                 // device pointer for dst image

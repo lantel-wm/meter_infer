@@ -20,7 +20,6 @@ class ProducerConsumer
         {
             capacity_ = capacity;
             num_buffer_ = num_cam;
-            stop_ = false;
             
             if (capacity_ < num_buffer_)
             {
@@ -32,6 +31,7 @@ class ProducerConsumer
             for (int i = 0; i < num_buffer_; i++)
             {
                 buffers_.push_back(std::queue<T>());
+                stop_.push_back(false);
             }
         }
 
@@ -40,7 +40,7 @@ class ProducerConsumer
             std::unique_lock<std::mutex> lock(mutex_);
             // notFull_.wait(lock, [this] { return queue_.size() < capacity_ || stop_; });
 
-            if (!stop_) 
+            if (!IsStopped()) 
             {
                 if (queue_.size() < capacity_)
                 {
@@ -56,10 +56,10 @@ class ProducerConsumer
         T Consume() 
         {
             std::unique_lock<std::mutex> lock(mutex_);
-            notEmpty_.wait(lock, [this] { return !queue_.empty() || stop_; });
+            notEmpty_.wait(lock, [this] { return !queue_.empty() || IsStopped(); });
 
             T item;
-            if (!stop_) 
+            if (!IsStopped()) 
             {
                 item = queue_.front();
                 queue_.pop();
@@ -74,7 +74,7 @@ class ProducerConsumer
         {
             std::unique_lock<std::mutex> lock(mutex_);
 
-            if (!stop_) 
+            if (!IsStopped()) 
             {
                 buffers_[thread_id].push(item);
                 if (buffers_[thread_id].size() > capacity_)
@@ -89,9 +89,9 @@ class ProducerConsumer
         bool Read(T &item, int thread_id)
         {
             std::unique_lock<std::mutex> lock(mutex_);
-            notEmpty_.wait(lock, [this, thread_id] { return !buffers_[thread_id].empty() || stop_; });
+            notEmpty_.wait(lock, [this, thread_id] { return !buffers_[thread_id].empty() || IsStopped(); });
 
-            if (!stop_) 
+            if (!IsStopped()) 
             {
                 item = buffers_[thread_id].front();
                 return true;
@@ -99,10 +99,10 @@ class ProducerConsumer
             return false;
         }
 
-        void Stop() 
+        void Stop(int thread_id) 
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            stop_ = true;
+            stop_[thread_id] = true;
             notEmpty_.notify_all();
             notFull_.notify_all();
         }
@@ -117,6 +117,18 @@ class ProducerConsumer
             return num_buffer_;
         }
 
+        bool IsStopped() 
+        {
+            for (int i = 0; i < num_buffer_; i++)
+            {
+                if (!stop_[i])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
     private:
         std::queue<T> queue_;
         std::vector<std::queue<T> > buffers_;
@@ -126,7 +138,8 @@ class ProducerConsumer
         int capacity_;
         int buffer_size_;
         int num_buffer_;
-        bool stop_;
+        std::vector<bool> stop_;
+        // bool stop_;
 };
 
 #endif  // _PRO_CON_HPP_

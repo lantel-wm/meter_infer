@@ -124,11 +124,13 @@ void meterReader::parse_meters()
         std::vector<CropInfo> crops_meter_batch;
         crops_meter_batch.assign(first, last);
         int batch_size = crops_meter_batch.size();
-        // LOG(INFO) << "segmenting " << crops_meter_batch.size() << " crops";
-        // auto t1 = clock();
+        LOG(INFO) << "segmenting " << crops_meter_batch.size() << " crops";
+        // auto t1 = std::chrono::high_resolution_clock::now();
         segment.segment(crops_meter_batch);
-        // auto t2 = clock();
-        // LOG(WARNING) << "segmentation time: " << (t2 - t1) / 1000.0 << "ms";
+        // auto t2 = std::chrono::high_resolution_clock::now();
+        // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+        // LOG(WARNING) << "segmentation time: " << duration << "ms";
+        
         for (int j = 0; j < batch_size; j++)
         {
             crops_meter[i + j].mask_pointer = crops_meter_batch[j].mask_pointer;
