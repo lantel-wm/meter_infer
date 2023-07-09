@@ -41,6 +41,7 @@ struct FrameInfo
     cv::Mat frame;
     std::string info;
     std::vector<DetObject> det_objs;
+    int thread_id;
 };
 
 struct CropInfo

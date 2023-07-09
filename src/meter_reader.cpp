@@ -176,38 +176,38 @@ void meterReader::parse_meters()
 
 }
 
-void meterReader::draw_boxes(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> meters)
-{
-    // for (auto &image : images)
-    // {
-    //     for (auto &obj : image.det_objs)
-    //     {
-    //         std::string display_text = obj.class_name + " " + obj.meter_reading;
-    //         cv::Scalar color = COLORS[obj.class_id];
-    //         cv::rectangle(image.frame, obj.rect, color, 2);
-    //         cv::putText(image.frame, display_text, cv::Point(obj.rect.x, obj.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
-    //     }
-    //     // cv::imwrite("result.png", image.frame);
-    // }
+// void meterReader::draw_boxes(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> meters)
+// {
+//     // for (auto &image : images)
+//     // {
+//     //     for (auto &obj : image.det_objs)
+//     //     {
+//     //         std::string display_text = obj.class_name + " " + obj.meter_reading;
+//     //         cv::Scalar color = COLORS[obj.class_id];
+//     //         cv::rectangle(image.frame, obj.rect, color, 2);
+//     //         cv::putText(image.frame, display_text, cv::Point(obj.rect.x, obj.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
+//     //     }
+//     //     // cv::imwrite("result.png", image.frame);
+//     // }
     
-    for (int ibatch = 0; ibatch < frame_batch.size(); ibatch++)
-    {
-        FrameInfo frame_info = frame_batch[ibatch];
-        int img_width = frame_info.frame.cols;
-        int img_height = frame_info.frame.rows;
+//     for (int ibatch = 0; ibatch < frame_batch.size(); ibatch++)
+//     {
+//         FrameInfo frame_info = frame_batch[ibatch];
+//         int img_width = frame_info.frame.cols;
+//         int img_height = frame_info.frame.rows;
 
-        for (auto &meter_info: meters)
-        {
-            if (meter_info.frame_batch_id != ibatch)
-                continue;
+//         for (auto &meter_info: meters)
+//         {
+//             if (meter_info.frame_batch_id != ibatch)
+//                 continue;
             
-            std::string display_text = meter_info.class_name + " " + meter_info.meter_reading;
-            cv::Scalar color = COLORS[meter_info.class_id];
-            cv::rectangle(frame_info.frame, meter_info.rect, color, 2);
-            cv::putText(frame_info.frame, display_text, cv::Point(meter_info.rect.x, meter_info.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
-        }
-    }
-    // cv::imwrite("result.png", frame_batch[0].frame);
-    // sleep(1);
-    // cv::imshow("result", frame_batch[0].frame);
-}
+//             std::string display_text = meter_info.class_name + " " + meter_info.meter_reading;
+//             cv::Scalar color = COLORS[meter_info.class_id];
+//             cv::rectangle(frame_info.frame, meter_info.rect, color, 2);
+//             cv::putText(frame_info.frame, display_text, cv::Point(meter_info.rect.x, meter_info.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
+//         }
+//     }
+//     // cv::imwrite("result.png", frame_batch[0].frame);
+//     // sleep(1);
+//     // cv::imshow("result", frame_batch[0].frame);
+// }
