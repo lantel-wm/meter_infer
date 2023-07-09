@@ -65,7 +65,9 @@
         "__tree": "cpp",
         "queue": "cpp",
         "stack": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "locale": "cpp",
+        "__functional_base": "cpp"
     },
     "cmake.sourceDirectory": "/home/zzy/meter_infer",
     "Notes.notesLocation": "~/.notes",

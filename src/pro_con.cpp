@@ -114,7 +114,7 @@ void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
             if (meter_info.frame_batch_id != ibatch)
                 continue;
             
-            std::string display_text = meter_info.class_name + " " + meter_info.meter_reading;
+            std::string display_text = meter_info.meter_reading;
             cv::Scalar color = COLORS[meter_info.class_id];
             cv::rectangle(frames[ibatch], meter_info.rect, color, 4);
             cv::putText(frames[ibatch], display_text, cv::Point(meter_info.rect.x, meter_info.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
@@ -159,26 +159,40 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
 
     LOG(INFO) << "Thread " << thread_id << " started, stream url: " << stream_url << ", fps: " << fps;
 
-    while (cap.read(frame))
+    while (true)
     {
-        FrameInfo frame_info;
-        frame_info.frame = frame;
-        frame_info.info = stream_url;
-        frame_info.thread_id = thread_id;
-        pc.Produce(frame_info);
-        pc.Write(frame_info, thread_id);
-        
-        // frame rate control
-        std::chrono::steady_clock::time_point currentFrameTime = std::chrono::steady_clock::now();
-        std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentFrameTime - lastFrameTime);
-        std::chrono::milliseconds remaining = frameInterval - elapsed;
-        if (remaining > std::chrono::milliseconds::zero())
+        if (!cap.open(stream_url))
         {
-            std::this_thread::sleep_for(remaining);
+            LOG(WARNING) << "Thread " << thread_id << " cannot open the video file, retry in 1s...";
+            cv::waitKey(1000);
+            continue;
+        }
+        
+        while (cap.read(frame))
+        {
+            FrameInfo frame_info;
+            frame_info.frame = frame;
+            frame_info.info = stream_url;
+            frame_info.thread_id = thread_id;
+            pc.Produce(frame_info);
+            pc.Write(frame_info, thread_id);
+            
+            // frame rate control
+            std::chrono::steady_clock::time_point currentFrameTime = std::chrono::steady_clock::now();
+            std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentFrameTime - lastFrameTime);
+            std::chrono::milliseconds remaining = frameInterval - elapsed;
+            if (remaining > std::chrono::milliseconds::zero())
+            {
+                std::this_thread::sleep_for(remaining);
+            }
+
+            // update last frame time
+            lastFrameTime = currentFrameTime;
         }
 
-        // update last frame time
-        lastFrameTime = currentFrameTime;
+        LOG(WARNING) << "Thread " << thread_id << "connection lost, retry in 1s...";
+        cap.release();
+        cv::waitKey(1000);
     }
     pc.Stop(thread_id);
 }
@@ -207,13 +221,25 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
         // do something with frame
         std::vector<MeterInfo> meters;
         auto t1 = std::chrono::high_resolution_clock::now();
-        meter_reader.read(frame_batch, meters);
+
+        bool no_meter_detected = meter_reader.read(frame_batch, meters);
+
         auto t2 = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
         
         LOG(WARNING) << "meter reading time: " << duration << " ms";
 
-        meters_buffer = meters;
+        if (no_meter_detected) // no meter detected
+        {
+            LOG(WARNING) << "no meter detected";   
+        }
+        else // meters detected
+        {
+            LOG_ASSERT(0) << " stop here";
+            std::unique_lock<std::mutex> lock(pc.GetMutex());
+            meters_buffer = meters;
+            lock.unlock();
+        }
 
         LOG(INFO) <<  meters_buffer.size() << " meters detected";
 
@@ -221,6 +247,8 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
         {
             LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
         }
+
+        // LOG_ASSERT(0) << " stop here";
     }
 }
 
@@ -256,6 +284,8 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
             break;
         }
 
+        // LOG_ASSERT(frames.size() > 0) << " frames size is 0";
+
         // update display result
         std::unique_lock<std::mutex> lock(pc.GetMutex());
         display_result = meters_buffer;
@@ -275,6 +305,9 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
 
         cv::imshow("Display", display_frame);
         cv::waitKey(1);
+
+        // LOG_ASSERT(0) << " stop here";
+        
 
         std::chrono::steady_clock::time_point currentFrameTime = std::chrono::steady_clock::now();
         std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentFrameTime - lastFrameTime);

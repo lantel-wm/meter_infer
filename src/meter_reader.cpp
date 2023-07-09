@@ -61,7 +61,8 @@ meterReader::~meterReader()
     // CUDA_CHECK(cudaFree(d_circle_pointer));
 }
 
-void meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters)
+// if no meter detected, return true
+bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters)
 {
     meters.clear();
     // auto t1 = clock();
@@ -69,10 +70,17 @@ void meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInf
     // auto t2 = clock();
     // LOG(WARNING) << "crop_meters time: " << (t2 - t1) / 1000.0 << "ms";
 
+    if (crops_meter.size() == 0 && crops_water.size() == 0)
+    {
+        // LOG(WARNING) << "No meter detected";
+        return true;
+    }
+
     parse_meters();
 
     read_number(meters);
 
+    return false;
     // draw_boxes(frame_batch, meters);
 }
 

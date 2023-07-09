@@ -42,7 +42,7 @@ class meterReader
         meterReader(std::string const trt_model_det, std::string const trt_model_seg);
         ~meterReader();
 
-        void read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters);
+        bool read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters);
         
 };
 
