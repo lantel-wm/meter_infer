@@ -48,14 +48,22 @@ int main(int argc, char **argv)
     std::string source = parser.get<std::string>("source");
 
     std::vector<std::string> stream_urls = {
-        "/home/zzy/cublas_test/data/201.mp4", 
-        "/home/zzy/cublas_test/data/201.mp4",
-        "/home/zzy/cublas_test/data/201.mp4", 
-        "/home/zzy/cublas_test/data/201.mp4",
-        "/home/zzy/cublas_test/data/201.mp4", 
-        "/home/zzy/cublas_test/data/201.mp4",
-        "/home/zzy/cublas_test/data/201.mp4", 
-        "/home/zzy/cublas_test/data/201.mp4"
+        "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
+        // "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
+        // "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
+        // "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
+        // "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
+        // "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
+        // "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
+        // "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
+        // "/home/zzy/cublas_test/data/201.mp4", 
+        // "/home/zzy/cublas_test/data/201.mp4",
+        // "/home/zzy/cublas_test/data/201.mp4", 
+        // "/home/zzy/cublas_test/data/201.mp4",
+        // "/home/zzy/cublas_test/data/201.mp4", 
+        // "/home/zzy/cublas_test/data/201.mp4",
+        // "/home/zzy/cublas_test/data/201.mp4", 
+        // "/home/zzy/cublas_test/data/201.mp4",
     };
 
     if (stream_urls.size() != num_cam)

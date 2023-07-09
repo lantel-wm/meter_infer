@@ -141,6 +141,16 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
         return;
     }
 
+    int warmup_frames = 10;
+    while (warmup_frames > 0)
+    {
+        cv::Mat frame;
+        if (cap.read(frame))
+        {
+            warmup_frames--;
+        }
+    }
+
     cv::Mat frame;
     float fps = cap.get(cv::CAP_PROP_FPS);
     std::chrono::milliseconds frameInterval(static_cast<int>(1000.0 / fps));
@@ -176,6 +186,7 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
 void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer, 
     int det_batch, int seg_batch, meterReader &meter_reader)
 {
+    // std::this_thread::sleep_for(std::chrono::seconds(3));
     while (true) 
     {
         if (pc.IsStopped()) 
@@ -300,6 +311,8 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
     {
         producers.emplace_back(ProducerThread, std::ref(pc), stream_urls[thread_id], thread_id);
     }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader));
     std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer));
