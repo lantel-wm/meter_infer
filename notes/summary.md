@@ -85,14 +85,18 @@ multiply each mask with its corresponding mask weight and then sum all these pro
 
 ## TODO:
 
-- int8 inference
+- int8 inference 
 
-- segmentation
+- segmentation (done)
 
-- cuda preprocess and postprocess (cuda high performance multi-dimensional array transpose needed)
+- cuda preprocess and postprocess (cuda high performance multi-dimensional array transpose needed) (done)
 
-- meter_reader
+- meter_reader (done)
 
-- multi-thread to read RTSP stream
+- multi-thread to read RTSP stream (done)
 
-- producer-consumer model (video stream as producer, meter_reader as consumer)
+- producer-consumer model (video stream as producer, meter_reader as consumer) (done)
+
+- save real-time readings in mysql server
+
+- use ZLMediaKit

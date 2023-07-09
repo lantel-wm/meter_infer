@@ -2,12 +2,12 @@
 #include <vector>
 #include <cuda_runtime.h>
 
+#include "common.hpp"
 #include "cublas_v2.h"
-#include "glog/logging.h"
 #include "yolo.hpp"
 #include "stream.hpp"
 #include "config.hpp"
-#include "common.hpp"
+
 
 // view mask image of segmentation on device
 void view_masks(float* h_ptr, int nobjs, std::vector<DetObject> &det_objs)
@@ -148,7 +148,13 @@ void Segment::processMask(std::vector<CropInfo> &crops)
             &beta,
             d_mask_out,
             nobjs);
-        LOG_ASSERT(cublas_status == CUBLAS_STATUS_SUCCESS) << "\nCUBLAS sgemm failed!\n";
+
+        // LOG_ASSERT(cublas_status == CUBLAS_STATUS_SUCCESS) << "\nCUBLAS sgemm failed!\n";
+        if (cublas_status != CUBLAS_STATUS_SUCCESS)
+        {
+            LOG(ERROR) << "CUBLAS sgemm failed!";
+            return;
+        }
 
         dim3 block1(1024);
         dim3 grid1((nobjs * 160 * 160 + block1.x - 1) / block1.x);

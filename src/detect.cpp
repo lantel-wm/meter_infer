@@ -5,7 +5,7 @@
 #include <fstream>
 #include <time.h>
 
-#include "glog/logging.h"
+
 #include "config.hpp"
 #include "common.hpp"
 #include "yolo.hpp"

@@ -5,10 +5,10 @@
 #include <string>
 #include <vector>
 #include <cuda_runtime.h>
+#include "common.hpp"
 #include "cublas_v2.h"
 #include "NvInfer.h"
-#include "common.hpp"
-#include "stream.hpp"
+// #include "stream.hpp"
 
 using namespace nvinfer1;
 

@@ -2,11 +2,11 @@
 #include <string>
 #include <vector>
 
-#include "glog/logging.h"
+#include "common.hpp"
 #include "meter_reader.hpp"
 #include "yolo.hpp"
 #include "config.hpp"
-#include "common.hpp"
+
 
 void view_crops(std::vector<CropInfo> crops_meter, std::vector<CropInfo> crops_water)
 {
@@ -73,6 +73,7 @@ bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInf
     if (crops_meter.size() == 0 && crops_water.size() == 0)
     {
         // LOG(WARNING) << "No meter detected";
+        meters.clear();
         return true;
     }
 

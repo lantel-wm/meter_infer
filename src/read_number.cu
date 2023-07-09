@@ -17,6 +17,9 @@ float location_to_reading(std::vector<float> p_loc, std::vector<float> s_loc)
 {
     int num_scales = s_loc.size();
     
+    if (p_loc.size() == 0 || s_loc.size() == 0)
+        return -1.0f;
+
     if (p_loc[0] < s_loc[0])
         return 0.0f;
     if (p_loc[0] > s_loc[num_scales - 1])
@@ -228,6 +231,12 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         cv::Mat mask_pointer = crops_meter[im].mask_pointer;
         cv::Mat mask_scale = crops_meter[im].mask_scale;
 
+        if (mask_pointer.empty() || mask_scale.empty())
+        {
+            LOG(WARNING) << "mask empty";
+            continue;
+        }
+
         // cv::imwrite("./mask_scale_" + std::to_string(im) + ".png", mask_scale * 255);
         // cv::imwrite("./mask_pointer_" + std::to_string(im) + ".png", mask_pointer * 255);
         
@@ -250,6 +259,12 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         
         LOG(INFO) << "points size: " << points.size();
 
+        if (points.size() < 3)
+        {
+            LOG(WARNING) << "points size < 3";
+            continue;
+        }
+        
         int radius;
         cv::Point center;
         minimum_coverage_circle(points, radius, center);
@@ -329,7 +344,14 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         float reading_number = round(reading_percent * METER_RANGES[0] * 100) / 100;
         // std::string meter_reading = std::to_string(reading_number) + " " + METER_UNITS[0];
         char meter_reading[100];
-        sprintf(meter_reading, "%.2f %s", reading_number, METER_UNITS[0]);
+        if (reading_number >= 0.0)
+        {
+            sprintf(meter_reading, "%.2f %s", reading_number, METER_UNITS[0]);
+        }
+        else
+        {
+            sprintf(meter_reading, "N/A");
+        }
 
         MeterInfo meter_info;
         meter_info.rect = crops_meter[im].rect;
@@ -359,15 +381,27 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
 
 void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<MeterInfo> &meters)
 {
-    std::vector<int> meter_ids(crops_meter.size(), 0);
+    std::vector<int> meter_ids(crops_water.size(), 0);
     for (int im = 0; im < crops_water.size(); im++)
     {
-        cv::Rect level_bbox = crops_water[im].det_objs[0].rect;
-        float level_location = (level_bbox.y + level_bbox.height / 2.0) / crops_water[im].rect.height;
-        int level_percent = 100 - round(level_location * 100);
+        cv::Rect level_bbox;
+        float level_location;
+        int level_percent;
 
-        LOG(INFO) << "level_bbox: " << level_bbox.x << " " << level_bbox.y << " " << level_bbox.width << " " << level_bbox.height;
-        LOG(INFO) << "level_location: " << level_location;
+        if (crops_water[im].det_objs.size() == 0)
+        {
+            level_percent = 100;
+        }
+        else
+        {
+            level_bbox = crops_water[im].det_objs[0].rect;
+            level_location = (level_bbox.y + level_bbox.height / 2.0) / crops_water[im].rect.height;
+            level_percent = 100 - round(level_location * 100);
+
+            LOG(INFO) << "level_bbox: " << level_bbox.x << " " << level_bbox.y << " " << level_bbox.width << " " << level_bbox.height;
+            LOG(INFO) << "level_location: " << level_location;
+        }
+        
 
         MeterInfo meter_info;
         meter_info.rect = crops_water[im].rect;

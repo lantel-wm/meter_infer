@@ -234,7 +234,7 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
     // {
     //     cv::imwrite("src.jpg", images[0].frame);
     //     view_device_input_img_batch(d_ptr_dst, batch_size, 3, dst_h, dst_w, "dst");
-    //     LOG_ASSERT(0) << "stop here";
+    //     // LOG_ASSERT(0) << "stop here";
     // }
 
     dim3 block2(16, 16, 4);

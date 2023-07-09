@@ -124,32 +124,32 @@ void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
 
 void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_url, int thread_id) {
     cv::VideoCapture cap(stream_url);
-    int retry = 5;
+    // int retry = 5;
 
-    // retry 5 times
-    while (!cap.isOpened() && retry > 0) 
-    {
-        LOG(WARNING) << "Failed to open stream: " << stream_url << ", retrying in 1s ..." << std::endl;
-        cap.open(stream_url);
-        retry--;
-    }
+    // // retry 5 times
+    // while (!cap.isOpened() && retry > 0) 
+    // {
+    //     LOG(WARNING) << "Failed to open stream: " << stream_url << ", retrying in 1s ..." << std::endl;
+    //     cap.open(stream_url);
+    //     retry--;
+    // }
 
-    if (!cap.isOpened()) 
-    {
-        LOG(WARNING) << "Failed to open stream: " << stream_url << "after retrying " 
-            << retry << " times, exiting thread " << thread_id << " ...";
-        return;
-    }
+    // if (!cap.isOpened()) 
+    // {
+    //     LOG(WARNING) << "Failed to open stream: " << stream_url << "after retrying " 
+    //         << retry << " times, exiting thread " << thread_id << " ...";
+    //     return;
+    // }
 
-    int warmup_frames = 10;
-    while (warmup_frames > 0)
-    {
-        cv::Mat frame;
-        if (cap.read(frame))
-        {
-            warmup_frames--;
-        }
-    }
+    // int warmup_frames = 10;
+    // while (warmup_frames > 0)
+    // {
+    //     cv::Mat frame;
+    //     if (cap.read(frame))
+    //     {
+    //         warmup_frames--;
+    //     }
+    // }
 
     cv::Mat frame;
     float fps = cap.get(cv::CAP_PROP_FPS);
@@ -229,13 +229,12 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
         
         LOG(WARNING) << "meter reading time: " << duration << " ms";
 
-        if (no_meter_detected) // no meter detected
+        if (no_meter_detected) // no meter detected, skip update
         {
             LOG(WARNING) << "no meter detected";   
         }
         else // meters detected
         {
-            LOG_ASSERT(0) << " stop here";
             std::unique_lock<std::mutex> lock(pc.GetMutex());
             meters_buffer = meters;
             lock.unlock();
