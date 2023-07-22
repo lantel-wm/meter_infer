@@ -1,9 +1,15 @@
 #include <opencv2/opencv.hpp>
+#include <cstring>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <thread>
+#include <chrono>
+
 #include "yolo.hpp"
 #include "common.hpp"
 #include "pro_con.hpp"
 #include "meter_reader.hpp"
-
 #include "config.hpp"
 
 void merge_frames(std::vector<cv::Mat> frames, cv::Mat &display_frame)
@@ -124,35 +130,10 @@ void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
 
 void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_url, int thread_id) {
     cv::VideoCapture cap(stream_url);
-    // int retry = 5;
-
-    // // retry 5 times
-    // while (!cap.isOpened() && retry > 0) 
-    // {
-    //     LOG(WARNING) << "Failed to open stream: " << stream_url << ", retrying in 1s ..." << std::endl;
-    //     cap.open(stream_url);
-    //     retry--;
-    // }
-
-    // if (!cap.isOpened()) 
-    // {
-    //     LOG(WARNING) << "Failed to open stream: " << stream_url << "after retrying " 
-    //         << retry << " times, exiting thread " << thread_id << " ...";
-    //     return;
-    // }
-
-    // int warmup_frames = 10;
-    // while (warmup_frames > 0)
-    // {
-    //     cv::Mat frame;
-    //     if (cap.read(frame))
-    //     {
-    //         warmup_frames--;
-    //     }
-    // }
-
     cv::Mat frame;
+
     float fps = cap.get(cv::CAP_PROP_FPS);
+
     std::chrono::milliseconds frameInterval(static_cast<int>(1000.0 / fps));
     std::chrono::steady_clock::time_point lastFrameTime = std::chrono::steady_clock::now();
     std::vector<cv::Mat> frames(pc.GetNumBuffer());
@@ -321,6 +302,20 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
     cv::destroyAllWindows();
 }
 
+// void sendGetParameter()
+// {
+
+// }
+
+// void HeartbeatThread(std::vector<std::string> stream_urls, int interval_seconds)
+// {
+//     while (true)
+//     {
+        
+//         std::this_thread::sleep_for(std::chrono::seconds(interval_seconds));
+//     }
+// }
+
 // num_cam: number of cameras
 // capacity: capacity of the buffer
 // stream_urls: vector of stream urls
@@ -348,6 +343,7 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
 
     std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader));
     std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer));
+    // std::thread heartbeat(HeartbeatThread, stream_urls, interval_seconds);
     
     for (auto& producer : producers) 
     {
