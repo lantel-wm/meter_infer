@@ -8,7 +8,6 @@
 #include "common.hpp"
 #include "cublas_v2.h"
 #include "NvInfer.h"
-// #include "stream.hpp"
 
 using namespace nvinfer1;
 
@@ -36,6 +35,7 @@ struct DetObject
     std::string meter_reading;
 };
 
+// Store frame information.
 struct FrameInfo
 {
     cv::Mat frame;
@@ -44,17 +44,19 @@ struct FrameInfo
     int thread_id;
 };
 
+// Store crop information. Crops are obtained from the detection results.
 struct CropInfo
 {
     cv::Mat crop; // 640x640
-    cv::Mat mask_pointer; // 160x160
-    cv::Mat mask_scale; // 160x160
+    cv::Mat mask_pointer; // 160x160, obtained from the segmentation results
+    cv::Mat mask_scale; // 160x160, obtained from the segmentation results
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     int class_id;
     int frame_batch_id; // frame batch id
     std::vector<DetObject> det_objs; // scales or pointer or water level
 };
 
+// Store meter information. Meters are obtained from the segmentation results.
 struct MeterInfo
 {
     int meter_id; // meter identifier in the frame, sorted by the coordinate of the upperleft point

@@ -24,6 +24,7 @@ void view_crops(std::vector<CropInfo> crops_meter, std::vector<CropInfo> crops_w
     }
 }
 
+// load the detection model and segmentation model
 meterReader::meterReader(std::string const trt_model_det, std::string const trt_model_seg):
     detect(trt_model_det), segment(trt_model_seg)
 {   
@@ -85,6 +86,7 @@ bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInf
     // draw_boxes(frame_batch, meters);
 }
 
+// run object detection on the frames to get meter crops
 void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
 {
     int batch_size = frame_batch.size();
@@ -122,6 +124,7 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
     // LOG_ASSERT(0) << " stop here";
 }
 
+// parse the meter crops to get information to read the meter
 void meterReader::parse_meters()
 {
     // meter segmentation

@@ -1,3 +1,30 @@
+/*
+An implementation of producer-consumer pattern, the resources are frames from RTSP server,
+producer produces frames, consumer consumes frames. 
+
+More precisely, the producer thread reads frames from RTSP server and put them into the buffer,
+the consumer thread reads frames from the buffer and do meter reading. Additionally, there is
+a display thread which reads frames from the buffer and display them on the screen.
+
+There is a little difference between this implementation and traditional producer-consumer pattern.
+In this implementation, there are two buffers. The first buffer, called queue_, is a queue. It is 
+the traditionalbuffer in producer-consumer pattern which stores the resources for producers to 
+produce and consumers to consume. When the buffer is full, the producer thread will be blocked 
+until the buffer is not full. When the buffer is empty, the consumer thread will be blocked until
+the buffer is not empty.
+
+The second buffer, called buffers_, is a vector of queues, each queue in the vector is
+a buffer for a camera. This buffer is used to display the real-time frames. Therefore, 
+when one of the second buffers is full, the producer thread will not be blocked, it will
+continue to produce frames and overwrite the oldest frame in the buffer. When one of the
+second buffers is empty, the display thread will not be blocked, it will continue to display
+the last frame in the buffer.
+
+In this implementation, "T Consume()" and "void Produce(const T& item)" are used to manipulate
+the first buffer, "T Read(int thread_id)" and "void Write(const T& item, int thread_id)" are
+used to manipulate the second buffer.
+
+*/
 #include <opencv2/opencv.hpp>
 #include <cstring>
 #include <sys/socket.h>
@@ -106,6 +133,7 @@ void merge_frames(std::vector<cv::Mat> frames, cv::Mat &display_frame)
     }
 }
 
+// draw bounding boxes of detected meters, and display the meter reading on the top of the bounding box
 void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
 {
     LOG(INFO) << "displaying " << meters.size() << " meters";
@@ -129,12 +157,14 @@ void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
     }
 }
 
+// producer thread, read frames from RTSP server and put them into the buffer
 void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_url, int thread_id) {
     cv::VideoCapture cap(stream_url);
     cv::Mat frame;
 
     float fps = cap.get(cv::CAP_PROP_FPS);
 
+    // record time interval between two frames to control frame rate
     std::chrono::milliseconds frameInterval(static_cast<int>(1000.0 / fps));
     std::chrono::steady_clock::time_point lastFrameTime = std::chrono::steady_clock::now();
     std::vector<cv::Mat> frames(pc.GetNumBuffer());
@@ -179,6 +209,7 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
     pc.Stop(thread_id);
 }
 
+// consumer thread, read frames from the buffer and do meter reading
 void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer, 
     int det_batch, int seg_batch, meterReader &meter_reader)
 {
@@ -408,7 +439,7 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
 
     std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader));
     std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer));
-    std::thread heartbeat(HeartbeatThread, stream_urls, 10);
+    std::thread heartbeat(HeartbeatThread, stream_urls, 60);
     
     for (auto& producer : producers) 
     {

@@ -12,8 +12,8 @@
 
 #define PI 3.1415926f
 
-float location_to_reading(std::vector<float> p_loc, std::vector<float> s_loc)
 // return a float range in [0, 1]
+float location_to_reading(std::vector<float> p_loc, std::vector<float> s_loc)
 {
     int num_scales = s_loc.size();
     
@@ -36,6 +36,7 @@ float location_to_reading(std::vector<float> p_loc, std::vector<float> s_loc)
     return -1.0f;
 }
 
+// find the local maximums of a line as the location of the scale or pointer
 void line_to_location(int *line, std::vector<float> &location, int width)
 {
     float index_buffer[width];
@@ -168,6 +169,8 @@ void circle_to_rect_cpu(uint8_t* circle, uint8_t* rect, int radius, cv::Point ce
     }
 }
 
+// find the minimum coverage circle of a set of points
+// random incremental algorithm, time complexity O(n)
 void meterReader::minimum_coverage_circle(std::vector<cv::Point2f> points, int &radius, cv::Point &center)
 {
     std::random_shuffle(points.begin(), points.end());
@@ -214,6 +217,7 @@ void meterReader::minimum_coverage_circle(std::vector<cv::Point2f> points, int &
     center = cv::Point((int)center_f.x, (int)center_f.y);
 }
 
+// read circle pointer meter
 void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<MeterInfo> &meters)
 {
     uint8_t* rect_scale;
@@ -334,12 +338,14 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         line_to_location(line_pointer, pointer_location, RECT_WIDTH);
         line_to_location(line_scale, scale_location, RECT_WIDTH);
 
+        // // debug
         // std::cout << "pointer: " << pointer_location.size() << std::endl;
         // for (int i = 0; i < pointer_location.size(); i++) printf("%f ", pointer_location[i]); printf("\n\n");
 
         // std::cout << "scale: " << scale_location.size() << std::endl;
         // for (int i = 0; i < scale_location.size(); i++) printf("%f ", scale_location[i]); printf("\n\n");
 
+        // consruct MeterInfo and save to meters
         float reading_percent = location_to_reading(pointer_location, scale_location);
         float reading_number = round(reading_percent * METER_RANGES[0] * 100) / 100;
         // std::string meter_reading = std::to_string(reading_number) + " " + METER_UNITS[0];
