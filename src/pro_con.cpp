@@ -2,6 +2,7 @@
 #include <cstring>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <thread>
 #include <chrono>
@@ -144,7 +145,7 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
     {
         if (!cap.open(stream_url))
         {
-            LOG(WARNING) << "Thread " << thread_id << " cannot open the video file, retry in 1s...";
+            LOG(ERROR) << "Thread " << thread_id << " cannot open the video file, retry in 1s...";
             cv::waitKey(1000);
             continue;
         }
@@ -171,7 +172,7 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
             lastFrameTime = currentFrameTime;
         }
 
-        LOG(WARNING) << "Thread " << thread_id << "connection lost, retry in 1s...";
+        LOG(ERROR) << "Thread " << thread_id << "connection lost, retry in 1s...";
         cap.release();
         cv::waitKey(1000);
     }
@@ -232,6 +233,8 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
     }
 }
 
+
+// display thread
 void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer) 
 {
     cv::namedWindow("Display", cv::WINDOW_NORMAL);
@@ -302,19 +305,81 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
     cv::destroyAllWindows();
 }
 
-// void sendGetParameter()
-// {
 
-// }
+// send a RTSP GET_PARAMETER request to the RTSP server
+void sendGetParameter(std::string rtsp_server_url)
+{
+    // create a socket
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0)
+    {
+        LOG(ERROR) << "ERROR opening socket";
+        return;
+    }
 
-// void HeartbeatThread(std::vector<std::string> stream_urls, int interval_seconds)
-// {
-//     while (true)
-//     {
-        
-//         std::this_thread::sleep_for(std::chrono::seconds(interval_seconds));
-//     }
-// }
+    // parse the rtsp url to extract rtsp server ip and port 
+    char* rtsp_server_ip_cstr = new char[rtsp_server_url.length() + 1];
+    int rtsp_server_port;
+
+    if (sscanf(rtsp_server_url.c_str(), "rtsp://%*[^:]:%*[^@]@%[^:]:%d", rtsp_server_ip_cstr, &rtsp_server_port) != 2)
+    {
+        LOG(ERROR) << "ERROR parsing RTSP url: " << rtsp_server_url;
+        close(sockfd);
+        return;
+    }
+
+    std::string rtsp_server_ip(rtsp_server_ip_cstr);
+    delete[] rtsp_server_ip_cstr;
+
+    LOG(INFO) << "rtsp server ip: " << rtsp_server_ip;
+    LOG(INFO) << "rtsp server port: " << rtsp_server_port;
+
+    // connect to the RTSP server
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(rtsp_server_port);
+    inet_pton(AF_INET, rtsp_server_ip.c_str(), &(server_addr.sin_addr));
+
+    if (connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
+    {
+        LOG(ERROR) << "ERROR connecting to RTSP server";
+        close(sockfd);
+        return;
+    }
+
+    // build the GET_PARAMETER request
+    std::string request = "GET_PARAMETER " + rtsp_server_url + " RTSP/1.0\r\n";
+    request += "CSeq: 1\r\n";
+    request += "\r\n";
+
+    // send the GET_PARAMETER request
+    if (send(sockfd, request.c_str(), request.length(), 0) < 0)
+    {
+        LOG(ERROR) << "ERROR sending GET_PARAMETER request";
+        close(sockfd);
+        return;
+    }
+
+    LOG(INFO) << "GET_PARAMETER request sent";
+
+    // close the socket
+    close(sockfd);
+}
+
+// send a RTSP GET_PARAMETER request to the RTSP server every interval_seconds
+void HeartbeatThread(std::vector<std::string> stream_urls, int interval_seconds)
+{
+    while (true)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(interval_seconds));
+        for (auto &stream_url: stream_urls)
+        {
+            sendGetParameter(stream_url);
+            break;
+        }
+    }
+}
 
 // num_cam: number of cameras
 // capacity: capacity of the buffer
@@ -343,7 +408,7 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
 
     std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader));
     std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer));
-    // std::thread heartbeat(HeartbeatThread, stream_urls, interval_seconds);
+    std::thread heartbeat(HeartbeatThread, stream_urls, 10);
     
     for (auto& producer : producers) 
     {

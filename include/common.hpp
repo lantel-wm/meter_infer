@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-#define GOOGLE_STRIP_LOG 1
+// #define GOOGLE_STRIP_LOG 1
 #include "glog/logging.h"
 
 using namespace nvinfer1;
