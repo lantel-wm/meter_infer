@@ -207,7 +207,7 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
 
         LOG(INFO) << "batch: " << ibatch << ", src_w: " << src_w << ", src_h: " << src_h << ", dst_w: " << dst_w << ", dst_h: " << dst_h;
 
-        CUDA_CHECK(cudaMalloc((void **)&d_ptr_src, src_size));
+        CUDA_CHECK(cudaMalloc((void**)&d_ptr_src, src_size));
         CUDA_CHECK(cudaMemcpy(d_ptr_src, src.frame.data, src_size, cudaMemcpyHostToDevice));
 
         // compute affine tranformation matrix

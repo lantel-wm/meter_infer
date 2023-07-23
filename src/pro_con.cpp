@@ -228,6 +228,7 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
             if (frame_info.frame.empty()) {
                 continue;
             }
+            cv::imwrite("frame.png", frame_info.frame);
             frame_batch.push_back(frame_info);
         }
 
@@ -421,7 +422,7 @@ void HeartbeatThread(std::vector<std::string> stream_urls, int interval_seconds)
 // seg_model: path to segmentation model
 void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int det_batch, int seg_batch, std::string det_model, std::string seg_model) 
 {
-    meterReader meter_reader(det_model, seg_model);
+    meterReader meter_reader(det_model, seg_model, det_batch, seg_batch);
     
     std::vector<MeterInfo> meters_buffer(num_cam);
     

@@ -273,6 +273,12 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         cv::Point center;
         minimum_coverage_circle(points, radius, center);
         LOG(INFO) << "radius: " << radius << " center: " << center;
+
+        if (radius < 40)
+        {
+            LOG(WARNING) << "radius < 40";
+            continue;
+        }
         
         // cv::Mat min_cov_cir = mask_scale * 255 + mask_pointer * 255;
         // cv::circle(min_cov_cir, center, radius, cv::Scalar(255), 1);
@@ -423,7 +429,7 @@ void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<Met
     }
 }
 
-void meterReader::read_number(std::vector<MeterInfo> &meters)
+void meterReader::read_number(std::vector<MeterInfo> &meters, std::vector<CropInfo> &crops_meter, std::vector<CropInfo> &crops_water)
 {
     std::sort(crops_meter.begin(), crops_meter.end(), 
         [](CropInfo a, CropInfo b) { return a.rect.x == b.rect.x? a.rect.y < b.rect.y: a.rect.x < b.rect.x;});

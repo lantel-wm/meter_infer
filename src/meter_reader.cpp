@@ -25,9 +25,12 @@ void view_crops(std::vector<CropInfo> crops_meter, std::vector<CropInfo> crops_w
 }
 
 // load the detection model and segmentation model
-meterReader::meterReader(std::string const trt_model_det, std::string const trt_model_seg):
+meterReader::meterReader(std::string const trt_model_det, std::string const trt_model_seg, int det_batch, int seg_batch):
     detect(trt_model_det), segment(trt_model_seg)
 {   
+    det_batch = det_batch;
+    seg_batch = seg_batch;
+
     LOG(INFO) << "loading detector";
     // detect = Detect(trt_model_det);
     detect.engineInfo();
@@ -65,9 +68,13 @@ meterReader::~meterReader()
 // if no meter detected, return true
 bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters)
 {
+    // TODO: use a 2d vector to store different kinds of meters
+    std::vector<CropInfo> crops_meter; // cropped meter
+    std::vector<CropInfo> crops_water; // cropped water
+    
     meters.clear();
     // auto t1 = clock();
-    crop_meters(frame_batch);
+    crop_meters(frame_batch, crops_meter, crops_water);
     // auto t2 = clock();
     // LOG(WARNING) << "crop_meters time: " << (t2 - t1) / 1000.0 << "ms";
 
@@ -78,16 +85,16 @@ bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInf
         return true;
     }
 
-    parse_meters();
+    parse_meters(crops_meter, crops_water);
 
-    read_number(meters);
+    read_number(meters, crops_meter, crops_water);
 
     return false;
     // draw_boxes(frame_batch, meters);
 }
 
 // run object detection on the frames to get meter crops
-void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
+void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch, std::vector<CropInfo> &crops_meter, std::vector<CropInfo> &crops_water)
 {
     int batch_size = frame_batch.size();
 
@@ -96,9 +103,9 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
     // auto t2 = clock();
     // LOG(WARNING) << "detection time: " << (t2 - t1) / 1000.0 << "ms";
     
-    // TODO: used a 2d vector to store more kinds of meters
-    crops_meter.clear();
-    crops_water.clear();
+    // // TODO: used a 2d vector to store more kinds of meters
+    // crops_meter.clear();
+    // crops_water.clear();
 
     for (int ibatch = 0; ibatch < batch_size; ibatch++)
     {
@@ -125,14 +132,14 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch)
 }
 
 // parse the meter crops to get information to read the meter
-void meterReader::parse_meters()
+void meterReader::parse_meters(std::vector<CropInfo> &crops_meter, std::vector<CropInfo> &crops_water)
 {
     // meter segmentation
-    // break the crops into batches of 8
-    for (int i = 0; i < crops_meter.size(); i += 8)
+    // break the crops into batches of seg_batch
+    for (int i = 0; i < crops_meter.size(); i += seg_batch)
     {
         std::vector<CropInfo>::const_iterator first = crops_meter.begin() + i;
-        std::vector<CropInfo>::const_iterator last = MIN(crops_meter.begin() + i + 8, crops_meter.end());
+        std::vector<CropInfo>::const_iterator last = MIN(crops_meter.begin() + i + seg_batch, crops_meter.end());
         std::vector<CropInfo> crops_meter_batch;
         crops_meter_batch.assign(first, last);
         int batch_size = crops_meter_batch.size();
@@ -151,12 +158,12 @@ void meterReader::parse_meters()
     }
 
     // water detection
-    // break the crops into batches of 8
-    for (int i = 0; i < crops_water.size(); i += 8)
+    // break the crops into batches of det_batch
+    for (int i = 0; i < crops_water.size(); i += det_batch)
     {
         std::vector<FrameInfo> crops_water_batch;
         int first = i;
-        int last = MIN(i + 8, crops_water.size());
+        int last = MIN(i + det_batch, crops_water.size());
         int batch_size = last - first;
 
         for (int j = first; j < last; j++)

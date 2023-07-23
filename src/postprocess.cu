@@ -125,7 +125,7 @@ void Segment::processMask(std::vector<CropInfo> &crops)
         size_t mask_in_size = 32 * sizeof(float);
         size_t mask_out_size = nobjs * 160 * 160 * sizeof(float);
 
-        LOG(WARNING) << "nobjs: " << nobjs;
+        // LOG(WARNING) << "nobjs: " << nobjs;
 
         CUDA_CHECK(cudaMalloc((void**)&d_mask_in, mask_in_size * nobjs));
         CUDA_CHECK(cudaMalloc((void**)&d_mask_out, mask_out_size));
