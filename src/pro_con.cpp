@@ -435,7 +435,7 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
         producers.emplace_back(ProducerThread, std::ref(pc), stream_urls[thread_id], thread_id);
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader));
     std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer));
@@ -448,4 +448,5 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
 
     consumer.join();
     display.join();
+    heartbeat.join();
 }

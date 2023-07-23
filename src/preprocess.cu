@@ -180,7 +180,12 @@ __global__ void blobFromImage(uint8_t *input, float *output, int h, int w, int c
 void Detect::preprocess(std::vector<FrameInfo> &images)
 {
     int batch_size = images.size();
-    LOG_ASSERT(batch_size) << " images is empty";
+    // LOG_ASSERT(batch_size) << " images is empty";
+    if (batch_size == 0)
+    {
+        LOG(WARNING) << " images is empty";
+        return;
+    }
 
     uint8_t *d_ptr_src;                                                 // device pointer for src image
     uint8_t *d_ptr_dst;                                                 // device pointer for dst image
@@ -191,7 +196,7 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
     size_t src_size;                                                    // src image size
     size_t dst_size = batch_size * dst_w * dst_h * 3 * sizeof(uint8_t); // dst image size
 
-    CUDA_CHECK(cudaMalloc((uint8_t **)&d_ptr_dst, dst_size));
+    CUDA_CHECK(cudaMalloc((void**)&d_ptr_dst, dst_size));
 
     for (int ibatch = 0; ibatch < batch_size; ibatch++)
     {
@@ -202,7 +207,7 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
 
         LOG(INFO) << "batch: " << ibatch << ", src_w: " << src_w << ", src_h: " << src_h << ", dst_w: " << dst_w << ", dst_h: " << dst_h;
 
-        CUDA_CHECK(cudaMalloc((uint8_t **)&d_ptr_src, src_size));
+        CUDA_CHECK(cudaMalloc((void **)&d_ptr_src, src_size));
         CUDA_CHECK(cudaMemcpy(d_ptr_src, src.frame.data, src_size, cudaMemcpyHostToDevice));
 
         // compute affine tranformation matrix

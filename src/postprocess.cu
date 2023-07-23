@@ -8,7 +8,6 @@
 #include "stream.hpp"
 #include "config.hpp"
 
-
 // view mask image of segmentation on device
 void view_masks(float* h_ptr, int nobjs, std::vector<DetObject> &det_objs)
 {
@@ -113,19 +112,26 @@ void Segment::processMask(std::vector<CropInfo> &crops)
 
     for (int ibatch = 0; ibatch < batch_size; ibatch++)
     {
-        std::vector<DetObject> det_objs = crops[ibatch].det_objs;
+        // std::vector<DetObject> det_objs = crops[ibatch].det_objs;
+        if (crops[ibatch].det_objs.size() == 0)
+        {
+            LOG(WARNING) << "no object detected in this crop";
+            continue;
+        }
 
-        int nobjs = det_objs.size();
-        float *d_mask_in;
-        float *d_mask_out;
+        int nobjs = crops[ibatch].det_objs.size();
+        float *d_mask_in = nullptr;
+        float *d_mask_out = nullptr;
         size_t mask_in_size = 32 * sizeof(float);
         size_t mask_out_size = nobjs * 160 * 160 * sizeof(float);
 
-        CUDA_CHECK(cudaMalloc(&d_mask_in, mask_in_size * nobjs));
-        CUDA_CHECK(cudaMalloc(&d_mask_out, mask_out_size));
+        LOG(WARNING) << "nobjs: " << nobjs;
+
+        CUDA_CHECK(cudaMalloc((void**)&d_mask_in, mask_in_size * nobjs));
+        CUDA_CHECK(cudaMalloc((void**)&d_mask_out, mask_out_size));
         for (int iobj = 0; iobj < nobjs; iobj++)
         {
-            CUDA_CHECK(cudaMemcpy(d_mask_in + iobj * 32, det_objs[iobj].mask_in, mask_in_size, cudaMemcpyHostToDevice));
+            CUDA_CHECK(cudaMemcpy(d_mask_in + iobj * 32, crops[ibatch].det_objs[iobj].mask_in, mask_in_size, cudaMemcpyHostToDevice));
         }
 
         
@@ -153,8 +159,12 @@ void Segment::processMask(std::vector<CropInfo> &crops)
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
         {
             LOG(ERROR) << "CUBLAS sgemm failed!";
-            return;
+            CUDA_CHECK(cudaFree(d_mask_in));
+            CUDA_CHECK(cudaFree(d_mask_out));
+            continue;
         }
+
+        CUDA_CHECK(cudaFree(d_mask_in));
 
         dim3 block1(1024);
         dim3 grid1((nobjs * 160 * 160 + block1.x - 1) / block1.x);
@@ -169,14 +179,14 @@ void Segment::processMask(std::vector<CropInfo> &crops)
         LOG(INFO) << "mask_out: " << mask_out[0] << " " << mask_out[1] << " " << mask_out[2];
 
         // view_masks(mask_out, nobjs, det_objs);
+        CUDA_CHECK(cudaFree(d_mask_out));
 
-        crop_mask(mask_out, nobjs, det_objs, crops[ibatch].mask_scale, crops[ibatch].mask_pointer);
+        crop_mask(mask_out, nobjs, crops[ibatch].det_objs, crops[ibatch].mask_scale, crops[ibatch].mask_pointer);
 
         // cv::imwrite("./mask_scale.png", crops[ibatch].mask_scale);
         // cv::imwrite("./mask_pointer.png", crops[ibatch].mask_pointer);
 
         delete[] mask_out;
-        CUDA_CHECK(cudaFree(d_mask_in));
-        CUDA_CHECK(cudaFree(d_mask_out));
+        
     }
 }
