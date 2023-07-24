@@ -228,7 +228,7 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
             if (frame_info.frame.empty()) {
                 continue;
             }
-            cv::imwrite("frame.png", frame_info.frame);
+            // cv::imwrite("frame.png", frame_info.frame);
             frame_batch.push_back(frame_info);
         }
 
@@ -319,7 +319,12 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
         merge_frames(frames, display_frame);
 
         cv::imshow("Display", display_frame);
-        cv::waitKey(1);
+
+        if (cv::waitKey(1) == 27) 
+        {
+            LOG(WARNING) << "esc key is pressed by user, exiting display thread ...";
+            break;
+        }
 
         // LOG_ASSERT(0) << " stop here";
         
@@ -335,6 +340,7 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
         lastFrameTime = currentFrameTime;
     }   
     cv::destroyAllWindows();
+    // pc.StopAll();
 }
 
 

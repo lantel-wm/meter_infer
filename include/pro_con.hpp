@@ -106,6 +106,17 @@ class ProducerConsumer
             notFull_.notify_all();
         }
 
+        void StopAll() 
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            for (int i = 0; i < num_buffer_; i++)
+            {
+                stop_[i] = true;
+            }
+            notEmpty_.notify_all();
+            notFull_.notify_all();
+        }
+
         std::mutex& GetMutex() 
         {
             return mutex_;

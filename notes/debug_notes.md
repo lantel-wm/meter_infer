@@ -58,3 +58,17 @@ crop = img(rect);
 ~~~
 
 The latter would cause bugs.
+
+## 20230723
+
+When suddenly moving the camera, the image will be blurred. When sending the blurred image to meter-reader, random segment fault will occur.
+
+e.g.:
+- malloc(): corrupted top size
+- malloc(): invalid size (unsorted)
+- malloc(): unsorted double linked list corrupted
+- free(): invalid next size (normal)
+
+This bug won't occur when the camera is still.
+
+This bug is **NOT** fixed yet.
