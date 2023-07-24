@@ -144,12 +144,22 @@ void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
     
     for (int ibatch = 0; ibatch < frames.size(); ibatch++)
     {   
+        bool camera_id_plotted = false;
         for (auto &meter_info: meters)
         {
-            if (meter_info.camera_id != ibatch)
+            if (meter_info.frame_batch_id != ibatch)
                 continue;
             
-            std::string display_text = meter_info.meter_reading;
+            if (!camera_id_plotted)
+            {
+                // put camera_id on the top left corner
+                std::string display_text0 = "camera_id: " + std::to_string(meter_info.camera_id);
+                cv::Scalar color = cv::Scalar(0, 0, 0);
+                cv::putText(frames[ibatch], display_text0, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
+                camera_id_plotted = true;
+            }
+
+            std::string display_text = std::to_string(meter_info.instrument_id) + " " +  meter_info.meter_reading;
             cv::Scalar color = COLORS[meter_info.class_id];
             cv::rectangle(frames[ibatch], meter_info.rect, color, 4);
             cv::putText(frames[ibatch], display_text, cv::Point(meter_info.rect.x, meter_info.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
@@ -176,7 +186,7 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
         if (!cap.open(stream_url))
         {
             pc.SetInactive(thread_id);
-            LOG(ERROR) << "Thread " << thread_id << " cannot open the video file, retry in 1s...";
+            LOG(ERROR) << "Thread " << thread_id << " cannot open the camera, retry in 1s...";
             cv::waitKey(1000);
             continue;
         }
@@ -257,12 +267,14 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
             lock.unlock();
         }
 
-        LOG(INFO) <<  meters_buffer.size() << " meters detected";
+        LOG(INFO) <<  meters.size() << " meters detected";
 
-        for (auto &meter_info: meters_buffer)
+        for (auto &meter_info: meters)
         {
             LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
         }
+
+        // saveReadings(meters);
 
         // LOG_ASSERT(0) << " stop here";
     }
@@ -421,33 +433,122 @@ void HeartbeatThread(std::vector<std::string> stream_urls, int interval_seconds)
     }
 }
 
-void setupCameraInstrumentMapping(ProducerConsumer<FrameInfo> pc, std::vector<std::string> stream_urls, meterReader meter_reader)
+void draw_instrument_id(std::vector<FrameInfo> &frame_batch)
 {
-    // get one frame from each camera
-    int num_cam = pc.GetNumBuffer();
-    std::vector<FrameInfo> frame_batch(num_cam);
-    pc.getBatch(frame_batch);
-    // do detection
-    meter_reader.recognize(frame_batch);
-
-    int instrument_id = 0;
-    for (int camera_id = 0; camera_id < stream_urls.size(); camera_id++)
+    for (auto &frame_info: frame_batch)
     {
-        // TODO:set mysql
-        // table name: Cameras
-        // column name: camera_id, camera_url
+        cv::Mat frame = frame_info.frame;
+        std::vector<DetObject> objs = frame_info.det_objs;
+        
+        // put camera_id on the top left corner
+        std::string display_text0 = "camera_id: " + std::to_string(frame_info.camera_id);
+        cv::Scalar color0 = cv::Scalar(0, 0, 0);
+        cv::putText(frame, display_text0, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1, color0, 2);
 
-        std::vector<DetObject> objs = frame_batch[camera_id].det_objs;
         for (auto &obj: objs)
         {
-            // TODO:set mysql
-            // table name: Instruments
-            // column name: instrument_id, instrument_type, instrument_unit, camera_id
-
-            instrument_id++;
+            std::string display_text = "instrument_id: " + std::to_string(obj.instrument_id);
+            cv::Scalar color = COLORS[obj.class_id];
+            cv::rectangle(frame, obj.rect, color, 2);
+            cv::putText(frame, display_text, cv::Point(obj.rect.x, obj.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
         }
     }
+}
 
+void setupCameraInstrumentMapping(ProducerConsumer<FrameInfo> &pc, std::vector<std::string> stream_urls, meterReader meter_reader)
+{
+    while (true)
+    {
+        if (!pc.IsAllNotEmpty()) // not (any not empty) => exists one is empty => not ready
+        {
+            std::cout << "Waiting for all cameras to be ready..." << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+        }
+        
+        // get one frame from each camera
+        int num_cam = pc.GetNumBuffer();
+        std::vector<FrameInfo> frame_batch(num_cam);
+        pc.getBatch(frame_batch);
+        // do detection
+        meter_reader.recognize(frame_batch);
+
+        int instrument_id = 0;
+        for (int camera_id = 0; camera_id < stream_urls.size(); camera_id++)
+        {
+            // TODO:set mysql
+            // table name: Cameras
+            // column name: camera_id, camera_url
+            
+            for (int iobj = 0; iobj < frame_batch[camera_id].det_objs.size(); iobj++)
+            {
+                // TODO:set mysql
+                // table name: Instruments
+                // column name: instrument_id, instrument_type, instrument_unit, camera_id
+                frame_batch[camera_id].det_objs[iobj].instrument_id = instrument_id;
+                // std::cout << obj.instrument_id << std::endl;
+                instrument_id++;
+            }
+        }
+
+        std::cout << "All instrument_id set, showing the result..." << std::endl;
+
+        for (auto &frame_info: frame_batch)
+        {
+            for (auto &obj: frame_info.det_objs)
+            {
+                std::cout << obj.instrument_id << std::endl;
+            }
+        }
+
+        draw_instrument_id(frame_batch);
+
+        std::vector<cv::Mat> frames;
+        cv::Mat display_frame;
+        for (auto &frame_info: frame_batch)
+        {
+            frames.push_back(frame_info.frame);
+        }
+
+        merge_frames(frames, display_frame);
+
+        cv::namedWindow("Display instrument_id", cv::WINDOW_NORMAL);
+        cv::resizeWindow("Display instrument_id", 1920, 1080 / 2);
+        cv::imshow("Display instrument_id", display_frame);
+        cv::waitKey(0);
+        cv::destroyWindow("Display instrument_id");
+        
+        char c;
+        while (true)
+        {
+
+            std::cout << "Do you want to save the result? (y/n)" << std::endl;
+            std::cin >> c;
+
+            if (c == 'y')
+            {
+                meter_reader.set_camera_instrument_id(frame_batch);
+                std::cout << "Result saved." << std::endl;
+                break;
+            }
+            else if (c == 'n')
+            {
+                std::cout << "Resetting instrument_id in 1s..." << std::endl;
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                break;
+            }
+            else
+            {
+                std::cout << "Invalid input, please input again." << std::endl;
+                continue;
+            }
+        }
+
+        if (c == 'y')
+        {
+            break;
+        }
+    }
 
 }
 
@@ -475,8 +576,7 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    setupCameraInstrumentMapping(pc, stream_urls, meter_reader);
-    
+    setupCameraInstrumentMapping(std::ref(pc), stream_urls, meter_reader);
 
     std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader));
     std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer));

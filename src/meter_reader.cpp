@@ -65,6 +65,7 @@ meterReader::~meterReader()
     // CUDA_CHECK(cudaFree(d_circle_pointer));
 }
 
+// recognize the instruments in the frames and sort them by y coordinate then x coordinate
 void meterReader::recognize(std::vector<FrameInfo> &frame_batch)
 {
     // TODO: use a 2d vector to store different kinds of meters
@@ -79,6 +80,16 @@ void meterReader::recognize(std::vector<FrameInfo> &frame_batch)
                 return a.rect.y == b.rect.y? a.rect.x < b.rect.x: a.rect.y < b.rect.y; 
             }
         );
+    }
+}
+
+void meterReader::set_camera_instrument_id(std::vector<FrameInfo> frame_batch)
+{
+    camera_instrument_id.clear();
+    int num_cam = frame_batch.size();
+    for (int camera_id = 0; camera_id < num_cam; camera_id++)
+    {
+        camera_instrument_id.push_back(frame_batch[camera_id].det_objs);
     }
 }
 
@@ -127,12 +138,28 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch, std::vector<C
     for (int ibatch = 0; ibatch < batch_size; ibatch++)
     {
         FrameInfo frame_info = frame_batch[ibatch];
-        for (auto &obj : frame_info.det_objs)
+        std::vector<DetObject> objs = frame_info.det_objs;
+
+        std::sort(objs.begin(), objs.end(), 
+            [](DetObject a, DetObject b) { 
+                return a.rect.y == b.rect.y? a.rect.x < b.rect.x: a.rect.y < b.rect.y; 
+            }
+        );
+
+        // set instrument_id by camera_instrument_id
+        for (int iobj = 0; iobj < objs.size(); iobj++)
+        {
+            objs[iobj].instrument_id = camera_instrument_id[ibatch][iobj].instrument_id;
+        }
+
+        for (auto &obj : objs)
         {
             CropInfo crop_info;
             frame_info.frame(obj.rect).copyTo(crop_info.crop);
             crop_info.class_id = obj.class_id;
             crop_info.frame_batch_id = ibatch;
+            crop_info.camera_id = frame_info.camera_id;
+            crop_info.instrument_id = obj.instrument_id;
             crop_info.rect = obj.rect;
             if (crop_info.class_id == 0) // meter
             {

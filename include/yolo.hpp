@@ -25,6 +25,7 @@ struct DetObject
 {
     std::string name;
     int batch_id;
+    int instrument_id;
     int class_id;
     float conf;
     float reading;
@@ -53,23 +54,26 @@ struct CropInfo
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     int class_id;
     int frame_batch_id; // frame batch id
+    int camera_id; // camera id
+    int instrument_id; // meter identifier in the frame, sorted by the coordinate of the upperleft point
     std::vector<DetObject> det_objs; // scales or pointer or water level
 };
 
 // Store meter information. Meters are obtained from the segmentation results.
 struct MeterInfo
 {
-    int meter_id; // meter identifier in the frame, sorted by the coordinate of the upperleft point
+    int camera_id; // camera_id
+    int instrument_id; // meter identifier in the frame, sorted by the coordinate of the upperleft point
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     int class_id; // 0: meter, 1: water
-    int camera_id; // frame batch id
+    int frame_batch_id;
     std::string class_name; // meter, water
     std::string meter_reading; // e.g.: 2.3kPa, 66%
     float meter_reading_value; // e.g.: 2.3, 66
 
     void dump()
     {
-        LOG(INFO) << "In camera " << camera_id << ", " << meter_id << "th " << class_name << " is " << meter_reading << " at " << rect;
+        LOG(INFO) << "In camera " << camera_id << ", " << instrument_id << "th " << class_name << " is " << meter_reading << " at " << rect;
     }
 };
 

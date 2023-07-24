@@ -31,6 +31,7 @@ class ProducerConsumer
             {
                 buffers_.push_back(std::queue<T>());
                 stop_.push_back(false);
+                active_.push_back(false);
             }
         }
 
@@ -134,14 +135,14 @@ class ProducerConsumer
 
         void SetActive(int thread_id)
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::unique_lock<std::mutex> lock(mutex_);
             active_[thread_id] = true;
             lock.unlock();
         }
 
         void SetInactive(int thread_id)
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::unique_lock<std::mutex> lock(mutex_);
             active_[thread_id] = false;
             lock.unlock();
         }
@@ -178,6 +179,17 @@ class ProducerConsumer
             for (int i = 0; i < num_buffer_; i++)
             {
                 if (!stop_[i])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        bool IsAllNotEmpty()
+        {
+            for (int i = 0; i < num_buffer_; i++)
+            {
+                if (buffers_[i].empty())
                 {
                     return false;
                 }

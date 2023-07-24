@@ -17,6 +17,8 @@ class meterReader
         int det_batch; // batch size of detector
         int seg_batch; // batch size of segmenter
 
+        std::vector<std::vector<DetObject> > camera_instrument_id; // camera and instrument id mapping
+
         // // TODO: use a 2d vector to store different kinds of meters
         // std::vector<CropInfo> crops_meter; // cropped meter
         // std::vector<CropInfo> crops_water; // cropped water
@@ -37,6 +39,7 @@ class meterReader
 
         bool read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters);
         void recognize(std::vector<FrameInfo> &frame_batch);
+        void set_camera_instrument_id(std::vector<FrameInfo> frame_batch);
 
         int get_det_batch() { return det_batch; }
         int get_seg_batch() { return seg_batch; }

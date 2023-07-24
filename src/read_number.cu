@@ -228,7 +228,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
     uint8_t* d_circle_pointer; // device pointer
     int* line_pointer;
     int* line_scale;
-    std::vector<int> meter_ids(crops_meter.size(), 0);
+    // std::vector<int> meter_ids(crops_meter.size(), 0);
 
     for (int im = 0; im < crops_meter.size(); im++)
     {
@@ -367,10 +367,11 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
 
         MeterInfo meter_info;
         meter_info.rect = crops_meter[im].rect;
-        meter_info.camera_id = crops_meter[im].frame_batch_id;
+        meter_info.camera_id = crops_meter[im].camera_id;
+        meter_info.instrument_id = crops_meter[im].instrument_id;
         meter_info.class_id = 0; // meter
         meter_info.class_name = "meter";
-        meter_info.meter_id = meter_ids[im]++;
+        meter_info.frame_batch_id = crops_meter[im].frame_batch_id;
         meter_info.meter_reading = meter_reading;
         meter_info.meter_reading_value = reading_number;
         meters.push_back(meter_info);
@@ -394,7 +395,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
 
 void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<MeterInfo> &meters)
 {
-    std::vector<int> meter_ids(crops_water.size(), 0);
+    // std::vector<int> meter_ids(crops_water.size(), 0);
     for (int im = 0; im < crops_water.size(); im++)
     {
         cv::Rect level_bbox;
@@ -418,10 +419,11 @@ void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<Met
 
         MeterInfo meter_info;
         meter_info.rect = crops_water[im].rect;
-        meter_info.camera_id = crops_water[im].frame_batch_id;
+        meter_info.camera_id = crops_water[im].camera_id;
+        meter_info.instrument_id = crops_water[im].instrument_id;
         meter_info.class_id = 1; // water
         meter_info.class_name = "water";
-        meter_info.meter_id = meter_ids[im]++;
+        meter_info.frame_batch_id = crops_water[im].frame_batch_id;
         meter_info.meter_reading = std::to_string(level_percent) + " %";
         meter_info.meter_reading_value = level_percent / 100.f;
         meters.push_back(meter_info);
