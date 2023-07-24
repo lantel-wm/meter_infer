@@ -146,7 +146,7 @@ void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
     {   
         for (auto &meter_info: meters)
         {
-            if (meter_info.frame_batch_id != ibatch)
+            if (meter_info.camera_id != ibatch)
                 continue;
             
             std::string display_text = meter_info.meter_reading;
@@ -175,6 +175,7 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
     {
         if (!cap.open(stream_url))
         {
+            pc.SetInactive(thread_id);
             LOG(ERROR) << "Thread " << thread_id << " cannot open the video file, retry in 1s...";
             cv::waitKey(1000);
             continue;
@@ -182,10 +183,12 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
         
         while (cap.read(frame))
         {
+            pc.SetActive(thread_id);
+
             FrameInfo frame_info;
             frame_info.frame = frame;
             frame_info.info = stream_url;
-            frame_info.thread_id = thread_id;
+            frame_info.camera_id = thread_id;
             pc.Produce(frame_info);
             pc.Write(frame_info, thread_id);
             
@@ -327,8 +330,7 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
         }
 
         // LOG_ASSERT(0) << " stop here";
-        
-
+    
         std::chrono::steady_clock::time_point currentFrameTime = std::chrono::steady_clock::now();
         std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentFrameTime - lastFrameTime);
         std::chrono::milliseconds remaining = frameInterval - elapsed;
@@ -419,6 +421,36 @@ void HeartbeatThread(std::vector<std::string> stream_urls, int interval_seconds)
     }
 }
 
+void setupCameraInstrumentMapping(ProducerConsumer<FrameInfo> pc, std::vector<std::string> stream_urls, meterReader meter_reader)
+{
+    // get one frame from each camera
+    int num_cam = pc.GetNumBuffer();
+    std::vector<FrameInfo> frame_batch(num_cam);
+    pc.getBatch(frame_batch);
+    // do detection
+    meter_reader.recognize(frame_batch);
+
+    int instrument_id = 0;
+    for (int camera_id = 0; camera_id < stream_urls.size(); camera_id++)
+    {
+        // TODO:set mysql
+        // table name: Cameras
+        // column name: camera_id, camera_url
+
+        std::vector<DetObject> objs = frame_batch[camera_id].det_objs;
+        for (auto &obj: objs)
+        {
+            // TODO:set mysql
+            // table name: Instruments
+            // column name: instrument_id, instrument_type, instrument_unit, camera_id
+
+            instrument_id++;
+        }
+    }
+
+
+}
+
 // num_cam: number of cameras
 // capacity: capacity of the buffer
 // stream_urls: vector of stream urls
@@ -442,7 +474,9 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
         producers.emplace_back(ProducerThread, std::ref(pc), stream_urls[thread_id], thread_id);
     }
 
-    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    setupCameraInstrumentMapping(pc, stream_urls, meter_reader);
+    
 
     std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader));
     std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer));

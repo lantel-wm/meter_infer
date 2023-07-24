@@ -36,6 +36,7 @@ class meterReader
         ~meterReader();
 
         bool read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters);
+        void recognize(std::vector<FrameInfo> &frame_batch);
 
         int get_det_batch() { return det_batch; }
         int get_seg_batch() { return seg_batch; }

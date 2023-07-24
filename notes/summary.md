@@ -85,7 +85,7 @@ multiply each mask with its corresponding mask weight and then sum all these pro
 
 ## TODO:
 
-- int8 inference 
+- int8 inference (not needed now)
 
 - segmentation (done)
 
@@ -99,4 +99,13 @@ multiply each mask with its corresponding mask weight and then sum all these pro
 
 - save real-time readings in mysql server
 
-- use ZLMediaKit
+- use ZLMediaKit (not needed now)
+
+## 20230724
+
+Before meter-reader begins, initialize the cameras info and instruments info in mysql server.
+
+More precisely, give each camera and instrument a id.
+
+It can be done by object detection.
+

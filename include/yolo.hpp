@@ -41,7 +41,7 @@ struct FrameInfo
     cv::Mat frame;
     std::string info;
     std::vector<DetObject> det_objs;
-    int thread_id;
+    int camera_id;
 };
 
 // Store crop information. Crops are obtained from the detection results.
@@ -62,13 +62,14 @@ struct MeterInfo
     int meter_id; // meter identifier in the frame, sorted by the coordinate of the upperleft point
     cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
     int class_id; // 0: meter, 1: water
-    int frame_batch_id; // frame batch id
+    int camera_id; // frame batch id
     std::string class_name; // meter, water
     std::string meter_reading; // e.g.: 2.3kPa, 66%
+    float meter_reading_value; // e.g.: 2.3, 66
 
     void dump()
     {
-        LOG(INFO) << "In camera " << frame_batch_id << ", " << meter_id << "th " << class_name << " is " << meter_reading << " at " << rect;
+        LOG(INFO) << "In camera " << camera_id << ", " << meter_id << "th " << class_name << " is " << meter_reading << " at " << rect;
     }
 };
 

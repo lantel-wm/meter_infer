@@ -65,6 +65,23 @@ meterReader::~meterReader()
     // CUDA_CHECK(cudaFree(d_circle_pointer));
 }
 
+void meterReader::recognize(std::vector<FrameInfo> &frame_batch)
+{
+    // TODO: use a 2d vector to store different kinds of meters
+    detect.detect(frame_batch);
+
+    for (int ibatch = 0; ibatch < frame_batch.size(); ibatch++)
+    {
+        std::vector<DetObject> objs = frame_batch[ibatch].det_objs;
+        // sort the objects by y coordinate then x coordinate
+        std::sort(objs.begin(), objs.end(), 
+            [](DetObject a, DetObject b) { 
+                return a.rect.y == b.rect.y? a.rect.x < b.rect.x: a.rect.y < b.rect.y; 
+            }
+        );
+    }
+}
+
 // if no meter detected, return true
 bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters)
 {

@@ -117,6 +117,52 @@ class ProducerConsumer
             notFull_.notify_all();
         }
 
+        void getBatch(std::vector<T> &batch)
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+
+            if (!IsStopped()) 
+            {
+                for (int i = 0; i < num_buffer_; i++)
+                {
+                    batch[i] = buffers_[i].front();
+                }
+            }
+
+            lock.unlock();
+        }
+
+        void SetActive(int thread_id)
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            active_[thread_id] = true;
+            lock.unlock();
+        }
+
+        void SetInactive(int thread_id)
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            active_[thread_id] = false;
+            lock.unlock();
+        }
+
+        bool IsActive(int thread_id)
+        {
+            return active_[thread_id];
+        }
+
+        bool IsAllActive()
+        {
+            for (int i = 0; i < num_buffer_; i++)
+            {
+                if (!active_[i])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         std::mutex& GetMutex() 
         {
             return mutex_;
@@ -149,6 +195,7 @@ class ProducerConsumer
         int buffer_size_;
         int num_buffer_;
         std::vector<bool> stop_;
+        std::vector<bool> active_;
         // bool stop_;
 };
 
