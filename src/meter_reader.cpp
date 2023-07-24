@@ -80,6 +80,7 @@ void meterReader::recognize(std::vector<FrameInfo> &frame_batch)
                 return a.rect.y == b.rect.y? a.rect.x < b.rect.x: a.rect.y < b.rect.y; 
             }
         );
+        frame_batch[ibatch].det_objs = objs;
     }
 }
 
@@ -125,6 +126,7 @@ bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInf
 void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch, std::vector<CropInfo> &crops_meter, std::vector<CropInfo> &crops_water)
 {
     int batch_size = frame_batch.size();
+    LOG(INFO) << "detecting " << batch_size << " frames";
 
     // auto t1 = clock();
     detect.detect(frame_batch);
