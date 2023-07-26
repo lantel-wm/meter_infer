@@ -16,6 +16,7 @@ void execute_query(std::auto_ptr<sql::Statement> &stmt, std::string query)
         LOG(ERROR) << "# ERR: " << e.what();
         LOG(ERROR) << " (MySQL error code: " << e.getErrorCode();
         LOG(ERROR) << ", SQLState: " << e.getSQLState() << ")";
+        LOG(ERROR) << "query: " << query;
 
         exit(EXIT_FAILURE);
     }
@@ -51,16 +52,21 @@ mysqlServer::~mysqlServer()
 void mysqlServer::init_camera_instruments(std::vector<FrameInfo> &frame_batch, std::vector<std::string> &urls)
 {
     // delete all rows in Cameras table and Instruments table
+    LOG(INFO) << "DELETE FROM Cameras";
+    LOG(INFO) << "DELETE FROM Instruments";
+    execute_query(this->stmt, "SET foreign_key_checks = 0");
     execute_query(this->stmt, "DELETE FROM Cameras");
     execute_query(this->stmt, "DELETE FROM Instruments");
+    execute_query(this->stmt, "SET foreign_key_checks = 1");
 
     for (int camera_id = 0; camera_id < frame_batch.size(); camera_id++)
     {
         // insert cameras into Cameras table
         std::string query = "INSERT INTO Cameras (camera_id, camera_url) VALUES (" 
             + std::to_string(camera_id) + ", '" + urls[camera_id] + "')";
-        execute_query(this->stmt, query);
         LOG(INFO) << query;
+        execute_query(this->stmt, query);
+        
 
         // insert instruments into Instruments table
         for (auto &obj: frame_batch[camera_id].det_objs)
@@ -71,8 +77,9 @@ void mysqlServer::init_camera_instruments(std::vector<FrameInfo> &frame_batch, s
                 + std::to_string(obj.instrument_id) 
                 + ", '" + obj.class_name + "', '" + unit + "', " 
                 + std::to_string(camera_id) + ")";
-            execute_query(this->stmt, query);
             LOG(INFO) << query;
+            execute_query(this->stmt, query);
+            
         }
     }
 }
@@ -83,7 +90,7 @@ void mysqlServer::insert_readings(std::vector<MeterInfo> &meters, std::vector<st
     for (auto &meter: meters)
     {
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(now - last_save_times[meter.camera_id]);
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(now - last_save_times[meter.instrument_id]);
         
         if (time_span.count() < 1.0)
         {

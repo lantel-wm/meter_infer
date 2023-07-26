@@ -162,7 +162,8 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch, std::vector<C
         // set instrument_id by camera_instrument_id
         for (int iobj = 0; iobj < objs.size(); iobj++)
         {
-            objs[iobj].instrument_id = camera_instrument_id[ibatch][iobj].instrument_id;
+            int camera_id = frame_info.camera_id;
+            objs[iobj].instrument_id = camera_instrument_id[camera_id][iobj].instrument_id;
         }
 
         for (auto &obj : objs)

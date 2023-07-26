@@ -149,17 +149,15 @@ void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
         std::string display_text0 = "camera_id: " + std::to_string(thread_id);
         cv::Scalar color = cv::Scalar(0, 0, 0);
         cv::putText(frames[thread_id], display_text0, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
-        
-        for (auto &meter_info: meters)
-        {
-            if (meter_info.frame_batch_id != thread_id)
-                continue;
+    }
 
-            std::string display_text = std::to_string(meter_info.instrument_id) + " " +  meter_info.meter_reading;
-            cv::Scalar color = COLORS[meter_info.class_id];
-            cv::rectangle(frames[thread_id], meter_info.rect, color, 4);
-            cv::putText(frames[thread_id], display_text, cv::Point(meter_info.rect.x, meter_info.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
-        }
+    for (int instrument_id = 0; instrument_id < meters.size(); instrument_id++)
+    {
+        MeterInfo meter_info = meters[instrument_id];
+        std::string display_text = std::to_string(meter_info.instrument_id) + " " +  meter_info.meter_reading;
+        cv::Scalar color = COLORS[meter_info.class_id];
+        cv::rectangle(frames[meter_info.camera_id], meter_info.rect, color, 4);
+        cv::putText(frames[meter_info.camera_id], display_text, cv::Point(meter_info.rect.x, meter_info.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
     }
 }
 
@@ -226,9 +224,9 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
     // maintain a vector of last save time for each camera
     std::chrono::milliseconds save_interval(static_cast<int>(1000.0));
     std::vector<std::chrono::steady_clock::time_point> last_save_times(meter_reader.get_instrument_num());
-    for (int camera_id = 0; camera_id < meter_reader.get_instrument_num(); camera_id++)
+    for (int instrument_id = 0; instrument_id < meter_reader.get_instrument_num(); instrument_id++)
     {
-        last_save_times[camera_id] = std::chrono::steady_clock::now();
+        last_save_times[instrument_id] = std::chrono::steady_clock::now();
     }
 
     while (true) 
@@ -288,7 +286,7 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
 
 
 // display thread
-void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer) 
+void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer, std::vector<MeterInfo> &display_result)
 {
     cv::namedWindow("Display", cv::WINDOW_NORMAL);
 
@@ -298,7 +296,16 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
     std::vector<cv::Mat> frames(pc.GetNumBuffer());
     // std::vector<FrameInfo> frame_batch(pc.GetNumBuffer());
 
-    std::vector<MeterInfo> display_result;
+    std::vector<MeterInfo> meter_buffer_copy; // copy of meter_buffer
+
+    // init display result
+    for (int instrument_id = 0; instrument_id < meter_reader.get_instrument_num(); instrument_id++)
+    {
+        display_result[instrument_id].instrument_id = instrument_id;
+        display_result[instrument_id].meter_reading = "0";
+        display_result[instrument_id].rect = cv::Rect(0, 0, 0, 0);
+        display_result[instrument_id].class_name = "N/A";
+    }
 
     while (true) 
     {
@@ -326,26 +333,22 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
 
         // update display result
         std::unique_lock<std::mutex> lock(pc.GetMutex());
-        display_result = meters_buffer;
-        lock.unlock();
-
-        LOG(INFO) << "meters in display thread: "  << meters_buffer.size();
         for (auto &meter_info: meters_buffer)
         {
-            LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
+            display_result[meter_info.instrument_id] = meter_info;
         }
+        lock.unlock();
+
+        // LOG(INFO) << "meters in display thread: "  << meters_buffer.size();
+        // for (auto &meter_info: meters_buffer)
+        // {
+        //     LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
+        // }
 
         // draw all boxes in all frames
-        draw_boxes(frames, display_result);
-
-        // for (int thread_id = 0; thread_id < pc.GetNumBuffer(); thread_id++) 
-        // {
-        //     frames[thread_id] = frame_batch[thread_id].frame.clone();
-        // }
-        
         cv::Mat display_frame;
+        draw_boxes(frames, display_result);
         merge_frames(frames, display_frame);
-
         cv::imshow("Display", display_frame);
 
         if (cv::waitKey(1) == 27) 
@@ -590,7 +593,8 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
     mysqlServer mysql_server(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD, MYSQL_DB);
     
     std::vector<MeterInfo> meters_buffer(num_cam);
-    
+    std::vector<MeterInfo> display_result(meter_reader.get_instrument_num()); // display result
+
     ProducerConsumer<FrameInfo> pc(capacity, num_cam);
 
     std::vector<std::thread> producers;
@@ -605,8 +609,8 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
     setupCameraInstrumentMapping(std::ref(pc), stream_urls, std::ref(meter_reader), std::ref(mysql_server));
 
     std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader), std::ref(mysql_server));
-    std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer));
-    std::thread heartbeat(HeartbeatThread, stream_urls, 60);
+    std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer), std::ref(display_result));
+    // std::thread heartbeat(HeartbeatThread, stream_urls, 60);
     
     for (auto& producer : producers) 
     {
@@ -615,5 +619,5 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
 
     consumer.join();
     display.join();
-    heartbeat.join();
+    // heartbeat.join();
 }
