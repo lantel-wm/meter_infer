@@ -84,21 +84,16 @@ void mysqlServer::init_camera_instruments(std::vector<FrameInfo> &frame_batch, s
     }
 }
 
-void mysqlServer::insert_readings(std::vector<MeterInfo> &meters, std::vector<std::chrono::steady_clock::time_point> &last_save_times)
+void mysqlServer::insert_readings(std::vector<MeterInfo> &meters)
 {
     // insert readings into Readings table
     for (auto &meter: meters)
     {
-        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(now - last_save_times[meter.instrument_id]);
-        
-        if (time_span.count() < 1.0)
+        if (meter.class_name == "N/A")
         {
             continue;
         }
-
-        last_save_times[meter.instrument_id] = now;
-
+        
         std::string query = "INSERT INTO Readings (camera_id, instrument_id, value, datetime, rect_x, rect_y, rect_h, rect_w, debug_image_path) VALUES (" 
             + std::to_string(meter.camera_id) + ", " 
             + std::to_string(meter.instrument_id) + ", " 

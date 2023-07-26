@@ -217,17 +217,17 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
 }
 
 // consumer thread, read frames from the buffer and do meter reading
-void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer, 
+void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &display_result,
     int det_batch, int seg_batch, meterReader &meter_reader, mysqlServer &mysql_server)
 {
     // save the readings to database every 1 seconds for each camera
     // maintain a vector of last save time for each camera
-    std::chrono::milliseconds save_interval(static_cast<int>(1000.0));
-    std::vector<std::chrono::steady_clock::time_point> last_save_times(meter_reader.get_instrument_num());
-    for (int instrument_id = 0; instrument_id < meter_reader.get_instrument_num(); instrument_id++)
-    {
-        last_save_times[instrument_id] = std::chrono::steady_clock::now();
-    }
+    // std::chrono::milliseconds save_interval(static_cast<int>(1000.0));
+    // std::vector<std::chrono::steady_clock::time_point> last_save_times(meter_reader.get_instrument_num());
+    // for (int instrument_id = 0; instrument_id < meter_reader.get_instrument_num(); instrument_id++)
+    // {
+    //     last_save_times[instrument_id] = std::chrono::steady_clock::now();
+    // }
 
     while (true) 
     {
@@ -251,21 +251,24 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
         std::vector<MeterInfo> meters;
         auto t1 = std::chrono::high_resolution_clock::now();
 
-        bool no_meter_detected = meter_reader.read(frame_batch, meters);
+        bool read_error = meter_reader.read(frame_batch, meters);
 
         auto t2 = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
         
         LOG(WARNING) << "meter reading time: " << duration << " ms";
 
-        if (no_meter_detected) // no meter detected, skip update
+        if (read_error) // no meter detected, skip update
         {
-            LOG(WARNING) << "no meter detected";   
+            LOG(WARNING) << "read error, skip update";   
         }
         else // meters detected
         {
             std::unique_lock<std::mutex> lock(pc.GetMutex());
-            meters_buffer = meters;
+            for (auto &meter_info: meters)
+            {
+                display_result[meter_info.instrument_id] = meter_info;
+            }
             lock.unlock();
         }
 
@@ -276,7 +279,7 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
             LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
         }
 
-        mysql_server.insert_readings(meters, last_save_times);
+        // mysql_server.insert_readings(meters, last_save_times);
 
         // saveReadings(meters);
 
@@ -286,7 +289,7 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
 
 
 // display thread
-void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer, std::vector<MeterInfo> &display_result)
+void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &display_result)
 {
     cv::namedWindow("Display", cv::WINDOW_NORMAL);
 
@@ -296,16 +299,7 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
     std::vector<cv::Mat> frames(pc.GetNumBuffer());
     // std::vector<FrameInfo> frame_batch(pc.GetNumBuffer());
 
-    std::vector<MeterInfo> meter_buffer_copy; // copy of meter_buffer
-
-    // init display result
-    for (int instrument_id = 0; instrument_id < meter_reader.get_instrument_num(); instrument_id++)
-    {
-        display_result[instrument_id].instrument_id = instrument_id;
-        display_result[instrument_id].meter_reading = "0";
-        display_result[instrument_id].rect = cv::Rect(0, 0, 0, 0);
-        display_result[instrument_id].class_name = "N/A";
-    }
+    std::vector<MeterInfo> display_result_copy;
 
     while (true) 
     {
@@ -329,25 +323,13 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &mete
             break;
         }
 
-        // LOG_ASSERT(frames.size() > 0) << " frames size is 0";
-
-        // update display result
         std::unique_lock<std::mutex> lock(pc.GetMutex());
-        for (auto &meter_info: meters_buffer)
-        {
-            display_result[meter_info.instrument_id] = meter_info;
-        }
+        display_result_copy = display_result;
         lock.unlock();
-
-        // LOG(INFO) << "meters in display thread: "  << meters_buffer.size();
-        // for (auto &meter_info: meters_buffer)
-        // {
-        //     LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
-        // }
-
+        
         // draw all boxes in all frames
         cv::Mat display_frame;
-        draw_boxes(frames, display_result);
+        draw_boxes(frames, display_result_copy);
         merge_frames(frames, display_frame);
         cv::imshow("Display", display_frame);
 
@@ -579,6 +561,20 @@ void setupCameraInstrumentMapping(
 
 }
 
+void InsertReadingThread(ProducerConsumer<FrameInfo> &pc, std::vector<MeterInfo> &meters, mysqlServer &mysql_server, int interval_seconds)
+{
+    auto next_time = std::chrono::system_clock::now() + std::chrono::seconds(interval_seconds);
+    while(true)
+    {
+        std::unique_lock<std::mutex> lock(pc.GetMutex());
+        mysql_server.insert_readings(meters);
+        lock.unlock();
+        
+        std::this_thread::sleep_until(next_time);
+        next_time += std::chrono::seconds(interval_seconds);
+    }
+}
+
 // num_cam: number of cameras
 // capacity: capacity of the buffer
 // stream_urls: vector of stream urls
@@ -592,8 +588,7 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
 
     mysqlServer mysql_server(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD, MYSQL_DB);
     
-    std::vector<MeterInfo> meters_buffer(num_cam);
-    std::vector<MeterInfo> display_result(meter_reader.get_instrument_num()); // display result
+    // std::vector<MeterInfo> meters_buffer(num_cam);
 
     ProducerConsumer<FrameInfo> pc(capacity, num_cam);
 
@@ -607,10 +602,20 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
 
     // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     setupCameraInstrumentMapping(std::ref(pc), stream_urls, std::ref(meter_reader), std::ref(mysql_server));
+    std::vector<MeterInfo> display_result(meter_reader.get_instrument_num()); // display result
+    // init display result
+    for (int instrument_id = 0; instrument_id < meter_reader.get_instrument_num(); instrument_id++)
+    {
+        display_result[instrument_id].instrument_id = instrument_id;
+        display_result[instrument_id].meter_reading = "0";
+        display_result[instrument_id].rect = cv::Rect(0, 0, 0, 0);
+        display_result[instrument_id].class_name = "N/A";
+    }
 
-    std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader), std::ref(mysql_server));
-    std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer), std::ref(display_result));
+    std::thread consumer(ConsumerThread, std::ref(pc), std::ref(display_result), det_batch, seg_batch, std::ref(meter_reader), std::ref(mysql_server));
+    std::thread display(DisplayThread, std::ref(pc), std::ref(display_result));
     // std::thread heartbeat(HeartbeatThread, stream_urls, 60);
+    std::thread insert_reading(InsertReadingThread, std::ref(pc), std::ref(display_result), std::ref(mysql_server), 1);
     
     for (auto& producer : producers) 
     {
@@ -620,4 +625,5 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
     consumer.join();
     display.join();
     // heartbeat.join();
+    insert_reading.join();
 }
