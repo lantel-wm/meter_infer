@@ -94,6 +94,16 @@ void meterReader::set_camera_instrument_id(std::vector<FrameInfo> frame_batch)
     }
 }
 
+int meterReader::get_instrument_num()
+{
+    int num = 0;
+    for (int i = 0; i < camera_instrument_id.size(); i++)
+    {
+        num += camera_instrument_id[i].size();
+    }
+    return num;
+}
+
 // if no meter detected, return true
 bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters)
 {
@@ -128,10 +138,11 @@ void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch, std::vector<C
     int batch_size = frame_batch.size();
     LOG(INFO) << "detecting " << batch_size << " frames";
 
-    // auto t1 = clock();
+    // auto t1 = std::chrono::high_resolution_clock::now();
     detect.detect(frame_batch);
-    // auto t2 = clock();
-    // LOG(WARNING) << "detection time: " << (t2 - t1) / 1000.0 << "ms";
+    // auto t2 = std::chrono::high_resolution_clock::now();
+    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+    // LOG(WARNING) << "detection time: " << duration << "ms";
     
     // // TODO: used a 2d vector to store more kinds of meters
     // crops_meter.clear();

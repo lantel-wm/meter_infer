@@ -17,6 +17,10 @@ message(STATUS "Include directory: ${INCLUDE_DIR}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -Wall -O3")
 set(CMAKE_CXX_FLAGS "-Wno-error=deprecated-declarations -Wno-deprecated-declarations ")
 set(CUDA_NVCC_FLAGS "--maxrregcount=256")
+# gprof
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+# set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINARY_DIR})
 
 # set opencv
@@ -64,3 +68,4 @@ target_link_libraries(test glog::glog)
 target_link_libraries(test "nvinfer" "nvinfer_plugin")
 target_link_libraries(test "cublas")
 target_link_libraries(test "pthread")
+target_link_libraries(test "mysqlcppconn")

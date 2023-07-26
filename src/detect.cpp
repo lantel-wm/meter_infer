@@ -326,7 +326,7 @@ void Detect::postprocess(std::vector<FrameInfo> &images)
             det_obj.conf = conf;
             det_obj.batch_id = i;
             det_obj.class_id = class_id;
-            det_obj.name = CLASS_NAMES[class_id];
+            det_obj.class_name = CLASS_NAMES[class_id];
             images[i].det_objs.push_back(det_obj);
         }
     }

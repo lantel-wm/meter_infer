@@ -38,6 +38,7 @@ used to manipulate the second buffer.
 #include "common.hpp"
 #include "pro_con.hpp"
 #include "meter_reader.hpp"
+#include "mysql.hpp"
 #include "config.hpp"
 
 void merge_frames(std::vector<cv::Mat> frames, cv::Mat &display_frame)
@@ -219,9 +220,17 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
 
 // consumer thread, read frames from the buffer and do meter reading
 void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &meters_buffer, 
-    int det_batch, int seg_batch, meterReader &meter_reader)
+    int det_batch, int seg_batch, meterReader &meter_reader, mysqlServer &mysql_server)
 {
-    // std::this_thread::sleep_for(std::chrono::seconds(3));
+    // save the readings to database every 1 seconds for each camera
+    // maintain a vector of last save time for each camera
+    std::chrono::milliseconds save_interval(static_cast<int>(1000.0));
+    std::vector<std::chrono::steady_clock::time_point> last_save_times(meter_reader.get_instrument_num());
+    for (int camera_id = 0; camera_id < meter_reader.get_instrument_num(); camera_id++)
+    {
+        last_save_times[camera_id] = std::chrono::steady_clock::now();
+    }
+
     while (true) 
     {
         if (pc.IsStopped()) 
@@ -268,6 +277,8 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &met
         {
             LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
         }
+
+        mysql_server.insert_readings(meters, last_save_times);
 
         // saveReadings(meters);
 
@@ -457,7 +468,12 @@ void draw_instrument_id(std::vector<FrameInfo> &frame_batch)
     }
 }
 
-void setupCameraInstrumentMapping(ProducerConsumer<FrameInfo> &pc, std::vector<std::string> stream_urls, meterReader &meter_reader)
+void setupCameraInstrumentMapping(
+    ProducerConsumer<FrameInfo> &pc, 
+    std::vector<std::string> stream_urls, 
+    meterReader &meter_reader,
+    mysqlServer &mysql_server
+    )
 {
     while (true)
     {
@@ -508,8 +524,6 @@ void setupCameraInstrumentMapping(ProducerConsumer<FrameInfo> &pc, std::vector<s
 
         draw_instrument_id(frame_batch);
 
-        
-
         std::vector<cv::Mat> frames;
         cv::Mat display_frame;
         for (auto &frame_info: frame_batch)
@@ -537,6 +551,7 @@ void setupCameraInstrumentMapping(ProducerConsumer<FrameInfo> &pc, std::vector<s
             if (c == 'y')
             {
                 meter_reader.set_camera_instrument_id(frame_batch);
+                mysql_server.init_camera_instruments(frame_batch, stream_urls);
                 std::cout << "Result saved." << std::endl;
                 break;
             }
@@ -571,6 +586,8 @@ void setupCameraInstrumentMapping(ProducerConsumer<FrameInfo> &pc, std::vector<s
 void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int det_batch, int seg_batch, std::string det_model, std::string seg_model) 
 {
     meterReader meter_reader(det_model, seg_model, det_batch, seg_batch);
+
+    mysqlServer mysql_server(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD, MYSQL_DB);
     
     std::vector<MeterInfo> meters_buffer(num_cam);
     
@@ -585,9 +602,9 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int de
     }
 
     // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    setupCameraInstrumentMapping(std::ref(pc), stream_urls, std::ref(meter_reader));
+    setupCameraInstrumentMapping(std::ref(pc), stream_urls, std::ref(meter_reader), std::ref(mysql_server));
 
-    std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader));
+    std::thread consumer(ConsumerThread, std::ref(pc), std::ref(meters_buffer), det_batch, seg_batch, std::ref(meter_reader), std::ref(mysql_server));
     std::thread display(DisplayThread, std::ref(pc), std::ref(meters_buffer));
     std::thread heartbeat(HeartbeatThread, stream_urls, 60);
     

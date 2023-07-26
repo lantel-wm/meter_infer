@@ -404,7 +404,7 @@ void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<Met
 
         if (crops_water[im].det_objs.size() == 0)
         {
-            level_percent = 100;
+            level_percent = -1;
         }
         else
         {

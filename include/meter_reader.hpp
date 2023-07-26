@@ -41,6 +41,7 @@ class meterReader
         void recognize(std::vector<FrameInfo> &frame_batch);
         void set_camera_instrument_id(std::vector<FrameInfo> frame_batch);
 
+        int get_instrument_num();
         int get_det_batch() { return det_batch; }
         int get_seg_batch() { return seg_batch; }
         
