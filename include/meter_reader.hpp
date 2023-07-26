@@ -33,6 +33,8 @@ class meterReader
 
         void read_water(std::vector<CropInfo> &crops_water, std::vector<MeterInfo> &meters);
 
+        bool read_error(std::vector<FrameInfo> &frame_batch);
+
     public:
         meterReader(std::string const trt_model_det, std::string const trt_model_seg, int det_batch, int seg_batch);
         ~meterReader();

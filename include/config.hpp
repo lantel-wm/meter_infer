@@ -9,6 +9,7 @@ extern const std::string ENGINE_PATH;
 extern const std::string IMAGE_PATH;
 extern const std::string VIDEO_PATH;
 extern const std::string LOG_PATH;
+extern const std::string DEBUG_PATH;
 
 extern const char* INPUT_NAME;
 extern const char* OUTPUT_NAME0;

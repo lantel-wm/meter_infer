@@ -244,7 +244,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         // cv::imwrite("./mask_scale_" + std::to_string(im) + ".png", mask_scale * 255);
         // cv::imwrite("./mask_pointer_" + std::to_string(im) + ".png", mask_pointer * 255);
         
-        std::vector<std::vector<cv::Point>> contours;
+        std::vector<std::vector<cv::Point> > contours;
         std::vector<cv::Vec4i> hierarchy;
         std::vector<cv::Point2f> points;
         cv::findContours(mask_scale, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);      
@@ -365,6 +365,8 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
             sprintf(meter_reading, "N/A");
         }
 
+    
+
         MeterInfo meter_info;
         meter_info.rect = crops_meter[im].rect;
         meter_info.camera_id = crops_meter[im].camera_id;
@@ -374,6 +376,21 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         meter_info.frame_batch_id = crops_meter[im].frame_batch_id;
         meter_info.meter_reading = meter_reading;
         meter_info.meter_reading_value = reading_number;
+
+        // debug_info
+        cv::Mat min_cov_cir = mask_scale * 255 + mask_pointer * 255;
+        cv::circle(min_cov_cir, center, radius, cv::Scalar(255), 1);
+        cv::circle(min_cov_cir, center, radius - RECT_HEIGHT, cv::Scalar(255), 1);
+        cv::circle(min_cov_cir, center, 1, cv::Scalar(100), 1);
+
+        meter_info.crop = crops_meter[im].crop;
+        meter_info.mask_pointer = crops_meter[im].mask_pointer * 255;
+        meter_info.mask_scale = crops_meter[im].mask_scale * 255;
+        meter_info.circle = min_cov_cir;
+        meter_info.rect_pointer = cv::Mat(RECT_HEIGHT, RECT_WIDTH, CV_8UC1, rect_pointer) * 255;
+        meter_info.rect_scale = cv::Mat(RECT_HEIGHT, RECT_WIDTH, CV_8UC1, rect_scale) * 255;
+        meter_info.pointer_location = pointer_location;
+        meter_info.scale_location = scale_location;
         meters.push_back(meter_info);
 
         LOG(INFO) << "meter_" + std::to_string(im) + ": " << meter_reading;
@@ -426,6 +443,10 @@ void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<Met
         meter_info.frame_batch_id = crops_water[im].frame_batch_id;
         meter_info.meter_reading = std::to_string(level_percent) + " %";
         meter_info.meter_reading_value = level_percent / 100.f;
+
+        // debug_info
+        meter_info.crop = crops_water[im].crop;
+
         meters.push_back(meter_info);
 
         LOG(INFO) << "water_" + std::to_string(im) + ": " << level_percent << "%";

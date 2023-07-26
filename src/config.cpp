@@ -5,6 +5,7 @@ const std::string ENGINE_PATH = "/home/zzy/meter_infer/engines/";
 const std::string IMAGE_PATH = "/home/zzy/meter_infer/data/images/";
 const std::string VIDEO_PATH = "/home/zzy/meter_infer/data/videos/";
 const std::string LOG_PATH = "/home/zzy/meter_infer/logs/";
+const std::string DEBUG_PATH = "/home/zzy/reading_images/";
 
 const char* INPUT_NAME = "images";
 const char* OUTPUT_NAME0 = "output0";

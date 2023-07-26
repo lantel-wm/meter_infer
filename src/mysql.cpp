@@ -1,5 +1,5 @@
 #include <opencv2/opencv.hpp>
-
+#include <boost/filesystem.hpp>
 
 #include "mysql.hpp"
 
@@ -94,6 +94,41 @@ void mysqlServer::insert_readings(std::vector<MeterInfo> &meters)
             continue;
         }
         
+        auto now = std::chrono::system_clock::now();
+        uint64_t dis_millseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count()
+            - std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count() * 1000;
+        time_t tt = std::chrono::system_clock::to_time_t(now);
+        auto time_tm = localtime(&tt);
+        char cur_datetime[25] = { 0 };
+        sprintf(cur_datetime, "%d%02d%02d-%02d%02d%02d.%03d", time_tm->tm_year + 1900,
+            time_tm->tm_mon + 1, time_tm->tm_mday, time_tm->tm_hour,
+            time_tm->tm_min, time_tm->tm_sec, (int)dis_millseconds);
+        
+        // DEBUG_PATH + current datetime
+        std::string debug_image_path = DEBUG_PATH 
+            + std::to_string(meter.camera_id) + "_" 
+            + std::to_string(meter.instrument_id) + "_"
+            + cur_datetime + "/";
+
+        // create debug image path
+        boost::filesystem::create_directories(debug_image_path);
+
+        // save debug images
+        if (meter.class_id == 0)
+        {
+            cv::imwrite(debug_image_path + "crop.jpg", meter.crop);
+            cv::imwrite(debug_image_path + "mask_pointer.jpg", meter.mask_pointer);
+            cv::imwrite(debug_image_path + "mask_scale.jpg", meter.mask_scale);
+            cv::imwrite(debug_image_path + "circle.jpg", meter.circle);
+            cv::imwrite(debug_image_path + "rect_pointer.jpg", meter.rect_pointer);
+            cv::imwrite(debug_image_path + "rect_scale.jpg", meter.rect_scale);
+        }
+        else if (meter.class_id == 1)
+        {
+            cv::imwrite(debug_image_path + "crop.jpg", meter.crop);
+        }
+
+        // auto t1 = std::chrono::high_resolution_clock::now();
         std::string query = "INSERT INTO Readings (camera_id, instrument_id, value, datetime, rect_x, rect_y, rect_h, rect_w, debug_image_path) VALUES (" 
             + std::to_string(meter.camera_id) + ", " 
             + std::to_string(meter.instrument_id) + ", " 
@@ -102,8 +137,14 @@ void mysqlServer::insert_readings(std::vector<MeterInfo> &meters)
             + std::to_string(meter.rect.y) + ", " 
             + std::to_string(meter.rect.height) + ", " 
             + std::to_string(meter.rect.width) + ", '" 
-            + "no debug img" + "')";
+            + DEBUG_PATH + "')";
         execute_query(this->stmt, query);
+        // auto t2 = std::chrono::high_resolution_clock::now();
+        // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+
+        // 
+
         LOG(INFO) << query;
+        // LOG(WARNING) << "insert readings time: " << duration << " ms";
     }
 }

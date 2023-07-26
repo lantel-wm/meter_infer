@@ -70,6 +70,16 @@ struct MeterInfo
     std::string class_name; // meter, water
     std::string meter_reading; // e.g.: 2.3kPa, 66%
     float meter_reading_value; // e.g.: 2.3, 66
+    
+    // debug img
+    cv::Mat crop;
+    cv::Mat mask_pointer;
+    cv::Mat mask_scale;
+    cv::Mat circle;
+    cv::Mat rect_pointer;
+    cv::Mat rect_scale;
+    std::vector<float> pointer_location;
+    std::vector<float> scale_location;
 
     void dump()
     {

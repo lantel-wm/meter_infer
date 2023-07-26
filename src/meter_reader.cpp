@@ -104,7 +104,28 @@ int meterReader::get_instrument_num()
     return num;
 }
 
-// if no meter detected, return true
+bool meterReader::read_error(std::vector<FrameInfo> &frame_batch)
+{
+    for (int ibatch = 0; ibatch < frame_batch.size(); ibatch++)
+    {
+        std::vector<DetObject> objs = frame_batch[ibatch].det_objs;
+        int camera_id = frame_batch[ibatch].camera_id;
+        if (objs.size() != camera_instrument_id[camera_id].size())
+        {
+            return true;
+        }
+        for (int iobj = 0; iobj < objs.size(); iobj++)
+        {
+            if (objs[iobj].class_id != camera_instrument_id[camera_id][iobj].class_id)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// if read error, return true
 bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters)
 {
     // TODO: use a 2d vector to store different kinds of meters
@@ -117,12 +138,21 @@ bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInf
     // auto t2 = clock();
     // LOG(WARNING) << "crop_meters time: " << (t2 - t1) / 1000.0 << "ms";
 
+
+
     if (crops_meter.size() == 0 && crops_water.size() == 0)
     {
         // LOG(WARNING) << "No meter detected";
         meters.clear();
         return true;
     }
+
+    // if (read_error(frame_batch))
+    // {
+    //     // LOG(WARNING) << "Read error";
+    //     meters.clear();
+    //     return true;
+    // }
 
     parse_meters(crops_meter, crops_water);
 
