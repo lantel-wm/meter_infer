@@ -29,13 +29,14 @@ class mysqlServer
         const std::string user;
         const std::string passwd;
         const std::string database;
+        int debug_on;
 
         sql::Driver* driver;
         std::auto_ptr<sql::Connection> con;
         std::auto_ptr<sql::Statement> stmt;
 
     public:
-        mysqlServer(std::string sql_url, std::string user, std::string passwd, std::string database);
+        mysqlServer(std::string sql_url, std::string user, std::string passwd, std::string database, int debug_on);
         ~mysqlServer();
 
         void init_camera_instruments(std::vector<FrameInfo> &frame_batch, std::vector<std::string> &urls); // initialize the Instruments table in the database

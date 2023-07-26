@@ -22,8 +22,8 @@ void execute_query(std::auto_ptr<sql::Statement> &stmt, std::string query)
     }
 }
 
-mysqlServer::mysqlServer(std::string sql_url, std::string user, std::string passwd, std::string database)
-    : url(sql_url), user(user), passwd(passwd), database(database)
+mysqlServer::mysqlServer(std::string sql_url, std::string user, std::string passwd, std::string database, int debug_on)
+    : url(sql_url), user(user), passwd(passwd), database(database), debug_on(debug_on)
 {
     try
     {
@@ -94,38 +94,47 @@ void mysqlServer::insert_readings(std::vector<MeterInfo> &meters)
             continue;
         }
         
-        auto now = std::chrono::system_clock::now();
-        uint64_t dis_millseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count()
-            - std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count() * 1000;
-        time_t tt = std::chrono::system_clock::to_time_t(now);
-        auto time_tm = localtime(&tt);
-        char cur_datetime[25] = { 0 };
-        sprintf(cur_datetime, "%d%02d%02d-%02d%02d%02d.%03d", time_tm->tm_year + 1900,
-            time_tm->tm_mon + 1, time_tm->tm_mday, time_tm->tm_hour,
-            time_tm->tm_min, time_tm->tm_sec, (int)dis_millseconds);
-        
-        // DEBUG_PATH + current datetime
-        std::string debug_image_path = DEBUG_PATH 
-            + std::to_string(meter.camera_id) + "_" 
-            + std::to_string(meter.instrument_id) + "_"
-            + cur_datetime + "/";
+        std::string debug_image_path;
 
-        // create debug image path
-        boost::filesystem::create_directories(debug_image_path);
-
-        // save debug images
-        if (meter.class_id == 0)
+        if (debug_on)
         {
-            cv::imwrite(debug_image_path + "crop.jpg", meter.crop);
-            cv::imwrite(debug_image_path + "mask_pointer.jpg", meter.mask_pointer);
-            cv::imwrite(debug_image_path + "mask_scale.jpg", meter.mask_scale);
-            cv::imwrite(debug_image_path + "circle.jpg", meter.circle);
-            cv::imwrite(debug_image_path + "rect_pointer.jpg", meter.rect_pointer);
-            cv::imwrite(debug_image_path + "rect_scale.jpg", meter.rect_scale);
+            auto now = std::chrono::system_clock::now();
+            uint64_t dis_millseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count()
+                - std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count() * 1000;
+            time_t tt = std::chrono::system_clock::to_time_t(now);
+            auto time_tm = localtime(&tt);
+            char cur_datetime[25] = { 0 };
+            sprintf(cur_datetime, "%d%02d%02d-%02d%02d%02d.%03d", time_tm->tm_year + 1900,
+                time_tm->tm_mon + 1, time_tm->tm_mday, time_tm->tm_hour,
+                time_tm->tm_min, time_tm->tm_sec, (int)dis_millseconds);
+            
+            // DEBUG_PATH + current datetime
+            debug_image_path = DEBUG_PATH 
+                + std::to_string(meter.camera_id) + "_" 
+                + std::to_string(meter.instrument_id) + "_"
+                + cur_datetime + "/";
+
+            // create debug image path
+            boost::filesystem::create_directories(debug_image_path);
+
+            // save debug images
+            if (meter.class_id == 0)
+            {
+                cv::imwrite(debug_image_path + "crop.jpg", meter.crop);
+                cv::imwrite(debug_image_path + "mask_pointer.jpg", meter.mask_pointer);
+                cv::imwrite(debug_image_path + "mask_scale.jpg", meter.mask_scale);
+                cv::imwrite(debug_image_path + "circle.jpg", meter.circle);
+                cv::imwrite(debug_image_path + "rect_pointer.jpg", meter.rect_pointer);
+                cv::imwrite(debug_image_path + "rect_scale.jpg", meter.rect_scale);
+            }
+            else if (meter.class_id == 1)
+            {
+                cv::imwrite(debug_image_path + "crop.jpg", meter.crop);
+            }
         }
-        else if (meter.class_id == 1)
+        else
         {
-            cv::imwrite(debug_image_path + "crop.jpg", meter.crop);
+            debug_image_path = "N/A";
         }
 
         // auto t1 = std::chrono::high_resolution_clock::now();
@@ -137,7 +146,7 @@ void mysqlServer::insert_readings(std::vector<MeterInfo> &meters)
             + std::to_string(meter.rect.y) + ", " 
             + std::to_string(meter.rect.height) + ", " 
             + std::to_string(meter.rect.width) + ", '" 
-            + DEBUG_PATH + "')";
+            + debug_image_path + "')";
         execute_query(this->stmt, query);
         // auto t2 = std::chrono::high_resolution_clock::now();
         // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();

@@ -48,6 +48,9 @@ py_infer/*
 *.out
 *.app
 
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
 
 # CMake ================================
 bin/

@@ -564,12 +564,13 @@ void setupCameraInstrumentMapping(
 void InsertReadingThread(ProducerConsumer<FrameInfo> &pc, std::vector<MeterInfo> &meters, mysqlServer &mysql_server, int interval_seconds)
 {
     auto next_time = std::chrono::system_clock::now() + std::chrono::seconds(interval_seconds);
+    std::vector<MeterInfo> meters_copy;
     while(true)
     {
         std::unique_lock<std::mutex> lock(pc.GetMutex());
-        mysql_server.insert_readings(meters);
+        meters_copy = meters;
         lock.unlock();
-        
+        mysql_server.insert_readings(meters_copy);
         std::this_thread::sleep_until(next_time);
         next_time += std::chrono::seconds(interval_seconds);
     }
@@ -582,11 +583,13 @@ void InsertReadingThread(ProducerConsumer<FrameInfo> &pc, std::vector<MeterInfo>
 // seg_batch: batch size for segmentation
 // det_model: path to detection model
 // seg_model: path to segmentation model
-void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int det_batch, int seg_batch, std::string det_model, std::string seg_model) 
+void run(int num_cam, int capacity, std::vector<std::string> stream_urls, 
+    int det_batch, int seg_batch, std::string det_model, std::string seg_model
+    int debug_on) 
 {
     meterReader meter_reader(det_model, seg_model, det_batch, seg_batch);
 
-    mysqlServer mysql_server(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD, MYSQL_DB);
+    mysqlServer mysql_server(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD, MYSQL_DB, debug_on);
     
     // std::vector<MeterInfo> meters_buffer(num_cam);
 

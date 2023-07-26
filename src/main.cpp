@@ -35,6 +35,7 @@ int main(int argc, char **argv)
     parser.add<int>("det_batch", 'd', "batch size of detector", false, 8, cmdline::oneof<int>(1, 2, 4, 8));
     parser.add<int>("seg_batch", 'g', "batch size of segmenter", false, 8, cmdline::oneof<int>(1, 2, 4, 8));
     parser.add<std::string>("source", 's', "path to video or image, or rstp address", false, VIDEO_PATH + "201.mp4");
+    parser.add<int>("debug", 'b', "debug mode", false, 0, cmdline::range(0, 1));
     parser.parse_check(argc, argv);
 
     LOG(INFO) << "num_cam: " << parser.get<int>("num_cam");
@@ -46,6 +47,7 @@ int main(int argc, char **argv)
     int det_batch = parser.get<int>("det_batch");
     int seg_batch = parser.get<int>("seg_batch");
     std::string source = parser.get<std::string>("source");
+    int debug_on = parser.get<int>("debug"); // 1: debug mode, 0: normal mode
 
     std::vector<std::string> stream_urls = {
         "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
@@ -76,7 +78,7 @@ int main(int argc, char **argv)
     std::string det_model = "yolov8n_batch" + std::to_string(det_batch) + ".trt";
     std::string seg_model = "yolov8s-seg_batch" + std::to_string(seg_batch) + ".trt";
     
-    run(num_cam, num_cam * 4, stream_urls, det_batch, seg_batch, det_model, seg_model);
+    run(num_cam, num_cam * 4, stream_urls, det_batch, seg_batch, det_model, seg_model, debug_on);
     
     return 0;
 }
