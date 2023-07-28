@@ -261,7 +261,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
             }
         }
         
-        LOG(INFO) << "points size: " << points.size();
+        // LOG(INFO) << "points size: " << points.size();
 
         if (points.size() < 3)
         {
@@ -272,7 +272,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         int radius;
         cv::Point center;
         minimum_coverage_circle(points, radius, center);
-        LOG(INFO) << "radius: " << radius << " center: " << center;
+        // LOG(INFO) << "radius: " << radius << " center: " << center;
 
         if (radius < 40)
         {
@@ -302,9 +302,9 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         dim3 block1 = dim3(16, 16);
         dim3 grid1 = dim3((RECT_HEIGHT + block1.x - 1) / block1.x, (RECT_WIDTH + block1.y - 1) / block1.y);
 
-        LOG(INFO) << "kernel circle_to_rect launched with "
-                << grid1.x << "x" << grid1.y << "x" << grid1.z << " blocks of "
-                << block1.x << "x" << block1.y << "x" << block1.z << " threads";
+        // LOG(INFO) << "kernel circle_to_rect launched with "
+        //         << grid1.x << "x" << grid1.y << "x" << grid1.z << " blocks of "
+        //         << block1.x << "x" << block1.y << "x" << block1.z << " threads";
         
         circle_to_rect<<<grid1, block1>>>(d_circle_pointer, d_rect_pointer, radius, center, RECT_WIDTH, RECT_HEIGHT, CIRCLE_WIDTH, CIRCLE_HEIGHT);
         circle_to_rect<<<grid1, block1>>>(d_circle_scale, d_rect_scale, radius, center, RECT_WIDTH, RECT_HEIGHT, CIRCLE_WIDTH, CIRCLE_HEIGHT);
@@ -393,7 +393,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
         meter_info.scale_location = scale_location;
         meters.push_back(meter_info);
 
-        LOG(INFO) << "meter_" + std::to_string(im) + ": " << meter_reading;
+        // LOG(INFO) << "meter_" + std::to_string(im) + ": " << meter_reading;
 
         // free memory
         CUDA_CHECK(cudaFree(d_circle_pointer));
@@ -429,8 +429,8 @@ void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<Met
             level_location = (level_bbox.y + level_bbox.height / 2.0) / crops_water[im].rect.height;
             level_percent = 100 - round(level_location * 100);
 
-            LOG(INFO) << "level_bbox: " << level_bbox.x << " " << level_bbox.y << " " << level_bbox.width << " " << level_bbox.height;
-            LOG(INFO) << "level_location: " << level_location;
+            // LOG(INFO) << "level_bbox: " << level_bbox.x << " " << level_bbox.y << " " << level_bbox.width << " " << level_bbox.height;
+            // LOG(INFO) << "level_location: " << level_location;
         }
         
 
@@ -449,7 +449,7 @@ void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<Met
 
         meters.push_back(meter_info);
 
-        LOG(INFO) << "water_" + std::to_string(im) + ": " << level_percent << "%";
+        // LOG(INFO) << "water_" + std::to_string(im) + ": " << level_percent << "%";
 
     }
 }

@@ -137,11 +137,11 @@ void merge_frames(std::vector<cv::Mat> frames, cv::Mat &display_frame)
 // draw bounding boxes of detected meters, and display the meter reading on the top of the bounding box
 void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
 {
-    LOG(INFO) << "displaying " << meters.size() << " meters";
-    for (auto &meter_info: meters)
-    {
-        LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
-    }
+    // LOG(INFO) << "displaying " << meters.size() << " meters";
+    // for (auto &meter_info: meters)
+    // {
+    //     LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
+    // }
     
     for (int thread_id = 0; thread_id < frames.size(); thread_id++)
     {   
@@ -274,10 +274,10 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &dis
 
         LOG(INFO) <<  meters.size() << " meters detected";
 
-        for (auto &meter_info: meters)
-        {
-            LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
-        }
+        // for (auto &meter_info: meters)
+        // {
+        //     LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
+        // }
 
         // mysql_server.insert_readings(meters, last_save_times);
 

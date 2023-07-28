@@ -166,7 +166,7 @@ bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInf
 void meterReader::crop_meters(std::vector<FrameInfo> &frame_batch, std::vector<CropInfo> &crops_meter, std::vector<CropInfo> &crops_water)
 {
     int batch_size = frame_batch.size();
-    LOG(INFO) << "detecting " << batch_size << " frames";
+    // LOG(INFO) << "detecting " << batch_size << " frames";
 
     // auto t1 = std::chrono::high_resolution_clock::now();
     detect.detect(frame_batch);
@@ -231,7 +231,7 @@ void meterReader::parse_meters(std::vector<CropInfo> &crops_meter, std::vector<C
         std::vector<CropInfo> crops_meter_batch;
         crops_meter_batch.assign(first, last);
         int batch_size = crops_meter_batch.size();
-        LOG(INFO) << "segmenting " << crops_meter_batch.size() << " crops";
+        // LOG(INFO) << "segmenting " << crops_meter_batch.size() << " crops";
         // auto t1 = std::chrono::high_resolution_clock::now();
         segment.segment(crops_meter_batch);
         // auto t2 = std::chrono::high_resolution_clock::now();
@@ -261,7 +261,7 @@ void meterReader::parse_meters(std::vector<CropInfo> &crops_meter, std::vector<C
             frame_info.info = "water crops";
             crops_water_batch.push_back(frame_info);
         }
-        LOG(INFO) << "detecting " << crops_water_batch.size() << " crops";
+        // LOG(INFO) << "detecting " << crops_water_batch.size() << " crops";
         // t1 = clock();
         detect.detect(crops_water_batch);
         // t2 = clock();

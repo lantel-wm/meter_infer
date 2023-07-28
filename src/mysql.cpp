@@ -64,7 +64,7 @@ void mysqlServer::init_camera_instruments(std::vector<FrameInfo> &frame_batch, s
         // insert cameras into Cameras table
         std::string query = "INSERT INTO Cameras (camera_id, camera_url) VALUES (" 
             + std::to_string(camera_id) + ", '" + urls[camera_id] + "')";
-        LOG(INFO) << query;
+        // LOG(INFO) << query;
         execute_query(this->stmt, query);
         
 
@@ -77,7 +77,7 @@ void mysqlServer::init_camera_instruments(std::vector<FrameInfo> &frame_batch, s
                 + std::to_string(obj.instrument_id) 
                 + ", '" + obj.class_name + "', '" + unit + "', " 
                 + std::to_string(camera_id) + ")";
-            LOG(INFO) << query;
+            // LOG(INFO) << query;
             execute_query(this->stmt, query);
             
         }

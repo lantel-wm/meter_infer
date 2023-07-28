@@ -205,7 +205,7 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
         src_h = src.frame.rows;
         src_size = src_w * src_h * 3 * sizeof(uint8_t);
 
-        LOG(INFO) << "batch: " << ibatch << ", src_w: " << src_w << ", src_h: " << src_h << ", dst_w: " << dst_w << ", dst_h: " << dst_h;
+        // LOG(INFO) << "batch: " << ibatch << ", src_w: " << src_w << ", src_h: " << src_h << ", dst_w: " << dst_w << ", dst_h: " << dst_h;
 
         CUDA_CHECK(cudaMalloc((void**)&d_ptr_src, src_size));
         CUDA_CHECK(cudaMemcpy(d_ptr_src, src.frame.data, src_size, cudaMemcpyHostToDevice));
@@ -216,11 +216,11 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
         dim3 block1(32, 32);
         dim3 grid1((dst_w + block1.x - 1) / block1.x, (dst_h + block1.y - 1) / block1.y);
 
-        LOG(INFO) << "warp_affine kernel launched with "
-                  << grid1.x << "x" << grid1.y << "x" << grid1.z << " blocks of "
-                  << block1.x << "x" << block1.y << "x" << block1.z << " threads, "
-                  << "src_w: " << src_w << ", src_h: " << src_h
-                  << ", dst_w: " << dst_w << ", dst_h: " << dst_h;
+        // LOG(INFO) << "warp_affine kernel launched with "
+        //           << grid1.x << "x" << grid1.y << "x" << grid1.z << " blocks of "
+        //           << block1.x << "x" << block1.y << "x" << block1.z << " threads, "
+        //           << "src_w: " << src_w << ", src_h: " << src_h
+        //           << ", dst_w: " << dst_w << ", dst_h: " << dst_h;
 
         // do letterbox transformation on src image
         // src: [src_h, src_w, 3], dst: [dst_h, dst_w, 3]
@@ -243,9 +243,9 @@ void Detect::preprocess(std::vector<FrameInfo> &images)
     dim3 block2(16, 16, 4);
     dim3 grid2((dst_w + block2.x - 1) / block2.x, (dst_h + block2.y - 1) / block2.y, (3 + block2.z - 1) / block2.z);
 
-    LOG(INFO) << "blobFromImage kernel launched with "
-              << grid2.x << "x" << grid2.y << "x" << grid2.z << " blocks of "
-              << block2.x << "x" << block2.y << "x" << block2.z << " threads";
+    // LOG(INFO) << "blobFromImage kernel launched with "
+    //           << grid2.x << "x" << grid2.y << "x" << grid2.z << " blocks of "
+    //           << block2.x << "x" << block2.y << "x" << block2.z << " threads";
 
     blobFromImage<<<grid2, block2>>>(
         d_ptr_dst, (float *)this->device_ptrs[0],
@@ -276,7 +276,7 @@ void Segment::preprocess(std::vector<CropInfo> &crops)
     for (auto crop_info : crops)
     {
         cv::resize(crop_info.crop, crop_info.crop, cv::Size(this->input_width, this->input_height));
-        LOG(INFO) << "crop size" << crop_info.crop.size();
+        // LOG(INFO) << "crop size" << crop_info.crop.size();
         CUDA_CHECK(cudaMemcpy(d_ptr + ibatch * w * h * 3, crop_info.crop.data, size, cudaMemcpyHostToDevice));
         ibatch++;
     }
@@ -284,9 +284,9 @@ void Segment::preprocess(std::vector<CropInfo> &crops)
     dim3 block(16, 16, 3);
     dim3 grid((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (3 + block.z - 1) / block.z);
 
-    LOG(INFO) << "blobFromImage kernel launched with "
-              << grid.x << "x" << grid.y << "x" << grid.z << " blocks of "
-              << block.x << "x" << block.y << "x" << block.z << " threads";
+    // LOG(INFO) << "blobFromImage kernel launched with "
+    //           << grid.x << "x" << grid.y << "x" << grid.z << " blocks of "
+    //           << block.x << "x" << block.y << "x" << block.z << " threads";
 
     blobFromImage<<<grid, block>>>(
         d_ptr, (float *)this->device_ptrs[0],

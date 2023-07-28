@@ -281,7 +281,7 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
 
     for (int i = 0; i < batch_size; i++)
     {
-        LOG(INFO) << "detected objects in batch " << i << " before nms: " << crops[i].det_objs.size();
+        // LOG(INFO) << "detected objects in batch " << i << " before nms: " << crops[i].det_objs.size();
     }
 
     // t1 = clock();
@@ -291,7 +291,7 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
 
     for (int i = 0; i < batch_size; i++)
     {
-        LOG(INFO) << "detected objects in batch " << i << " after nms: " << crops[i].det_objs.size();
+        // LOG(INFO) << "detected objects in batch " << i << " after nms: " << crops[i].det_objs.size();
     }
 
     // t1 = clock();

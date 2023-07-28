@@ -138,7 +138,7 @@ void Segment::processMask(std::vector<CropInfo> &crops)
         // do matrix multiplication: [nobjs * 32] * [32 * 160 * 160] = [nobjs * 160 * 160]
         float alpha = 1.0f;
         float beta = 0.0f;
-        LOG(INFO) << "cuBLAS sgemm";
+        // LOG(INFO) << "cuBLAS sgemm";
         cublas_status = cublasSgemm_v2(
             cublas_handle,
             CUBLAS_OP_T,
@@ -169,14 +169,14 @@ void Segment::processMask(std::vector<CropInfo> &crops)
         dim3 block1(1024);
         dim3 grid1((nobjs * 160 * 160 + block1.x - 1) / block1.x);
 
-        LOG(INFO) << "sigmoid kernel launched with " << grid1.x << " blocks of "
-            << block1.x << " threads";
+        // LOG(INFO) << "sigmoid kernel launched with " << grid1.x << " blocks of "
+        //     << block1.x << " threads";
         sigmoid<<<grid1, block1>>>(d_mask_out, nobjs * 160 * 160);
 
         float *mask_out = new float[mask_out_size];
         CUDA_CHECK(cudaMemcpy(mask_out, d_mask_out, mask_out_size, cudaMemcpyDeviceToHost));
 
-        LOG(INFO) << "mask_out: " << mask_out[0] << " " << mask_out[1] << " " << mask_out[2];
+        // LOG(INFO) << "mask_out: " << mask_out[0] << " " << mask_out[1] << " " << mask_out[2];
 
         // view_masks(mask_out, nobjs, det_objs);
         CUDA_CHECK(cudaFree(d_mask_out));

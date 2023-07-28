@@ -75,8 +75,8 @@ int main(int argc, char **argv)
     }
 
     // init meter reader
-    std::string det_model = "yolov8n_batch" + std::to_string(det_batch) + ".trt";
-    std::string seg_model = "yolov8s-seg_batch" + std::to_string(seg_batch) + ".trt";
+    std::string det_model = "yolov8n_batch" + std::to_string(det_batch) + "_20230728.trt";
+    std::string seg_model = "yolov8s-seg_batch" + std::to_string(seg_batch) + "_20230728.trt";
     
     run(num_cam, num_cam * 4, stream_urls, det_batch, seg_batch, det_model, seg_model, debug_on);
     
