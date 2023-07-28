@@ -9,7 +9,7 @@
 #include "yolo.hpp"
 #include "meter_reader.hpp"
 
-void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int det_batch, int seg_batch, std::string det_model, std::string seg_model);
+void run(int num_cam, int capacity, std::vector<std::string> stream_urls, int det_batch, int seg_batch, std::string det_model, std::string seg_model, int debug_on);
 
 template<typename T>
 class ProducerConsumer 

@@ -584,7 +584,7 @@ void InsertReadingThread(ProducerConsumer<FrameInfo> &pc, std::vector<MeterInfo>
 // det_model: path to detection model
 // seg_model: path to segmentation model
 void run(int num_cam, int capacity, std::vector<std::string> stream_urls, 
-    int det_batch, int seg_batch, std::string det_model, std::string seg_model
+    int det_batch, int seg_batch, std::string det_model, std::string seg_model,
     int debug_on) 
 {
     meterReader meter_reader(det_model, seg_model, det_batch, seg_batch);
