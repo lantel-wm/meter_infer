@@ -96,7 +96,7 @@ void mysqlServer::insert_readings(std::vector<MeterInfo> &meters)
         
         std::string debug_image_path;
 
-        if (debug_on)
+        if (debug_on || meter.error)
         {
             auto now = std::chrono::system_clock::now();
             uint64_t dis_millseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count()
@@ -137,8 +137,10 @@ void mysqlServer::insert_readings(std::vector<MeterInfo> &meters)
             debug_image_path = "N/A";
         }
 
+
+        int error_int = meter.error? 1: 0;
         // auto t1 = std::chrono::high_resolution_clock::now();
-        std::string query = "INSERT INTO Readings (camera_id, instrument_id, value, datetime, rect_x, rect_y, rect_h, rect_w, debug_image_path) VALUES (" 
+        std::string query = "INSERT INTO Readings (camera_id, instrument_id, value, datetime, rect_x, rect_y, rect_h, rect_w, debug_image_path, error) VALUES (" 
             + std::to_string(meter.camera_id) + ", " 
             + std::to_string(meter.instrument_id) + ", " 
             + std::to_string(meter.meter_reading_value) + ", NOW(3), " 
@@ -146,14 +148,54 @@ void mysqlServer::insert_readings(std::vector<MeterInfo> &meters)
             + std::to_string(meter.rect.y) + ", " 
             + std::to_string(meter.rect.height) + ", " 
             + std::to_string(meter.rect.width) + ", '" 
-            + debug_image_path + "')";
+            + debug_image_path + "', "
+            + std::to_string(error_int) + ")";
         execute_query(this->stmt, query);
         // auto t2 = std::chrono::high_resolution_clock::now();
         // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
 
         // 
 
-        LOG(INFO) << query;
+        // LOG(INFO) << query;
         // LOG(WARNING) << "insert readings time: " << duration << " ms";
     }
+}
+
+float mysqlServer::get_last_reading(int instrument_id)
+{
+    sql::ResultSet *res;
+
+    std::string query;
+
+    query = "SELECT * FROM Readings WHERE reading_id = (SELECT MAX(reading_id) FROM Readings WHERE instrument_id = "
+        + std::to_string(instrument_id) + ")";
+
+    try
+    {
+        res = stmt->executeQuery(query);
+    }
+    catch (sql::SQLException &e)
+    {
+        LOG(ERROR) << "# ERR: SQLException in " << __FILE__;
+        LOG(ERROR) << "(" << __FUNCTION__ << ") on line " << __LINE__;
+        LOG(ERROR) << "# ERR: " << e.what();
+        LOG(ERROR) << " (MySQL error code: " << e.getErrorCode();
+        LOG(ERROR) << ", SQLState: " << e.getSQLState() << ")";
+        LOG(ERROR) << "query: " << query;
+
+        // exit(EXIT_FAILURE);
+    }
+
+    float meter_reading_value;
+
+    if (res->next())
+    {
+        meter_reading_value = res->getDouble("value");
+    }
+    else
+    {
+        meter_reading_value = -1;
+    }
+
+    return meter_reading_value;
 }

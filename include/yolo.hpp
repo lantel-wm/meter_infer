@@ -70,6 +70,7 @@ struct MeterInfo
     std::string class_name; // meter, water
     std::string meter_reading; // e.g.: 2.3kPa, 66%
     float meter_reading_value; // e.g.: 2.3, 66
+    bool error;
     
     // debug img
     cv::Mat crop;

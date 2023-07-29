@@ -41,6 +41,7 @@ class mysqlServer
 
         void init_camera_instruments(std::vector<FrameInfo> &frame_batch, std::vector<std::string> &urls); // initialize the Instruments table in the database
         void insert_readings(std::vector<MeterInfo> &meters); // insert readings into the Readings table in the database
+        float get_last_reading(int instrument_id);
 };
 
 #endif

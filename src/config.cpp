@@ -1,6 +1,7 @@
 #include <string>
 #include "config.hpp"
 
+const std::string PROJECT_PATH = "/home/zzy/meter_infer/";
 const std::string ENGINE_PATH = "/home/zzy/meter_infer/engines/";
 const std::string IMAGE_PATH = "/home/zzy/meter_infer/data/images/";
 const std::string VIDEO_PATH = "/home/zzy/meter_infer/data/videos/";

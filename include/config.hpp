@@ -5,6 +5,7 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 
+extern const std::string PROJECT_PATH;
 extern const std::string ENGINE_PATH;
 extern const std::string IMAGE_PATH;
 extern const std::string VIDEO_PATH;

@@ -80,7 +80,9 @@
         "typeindex": "cpp",
         "variant": "cpp",
         "any": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "forward_list": "cpp",
+        "valarray": "cpp"
     },
     "cmake.sourceDirectory": "/home/zzy/meter_infer",
     "Notes.notesLocation": "~/.notes",

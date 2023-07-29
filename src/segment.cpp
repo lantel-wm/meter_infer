@@ -221,15 +221,24 @@ void Segment::postprocess(std::vector<CropInfo> &crops)
     bool flag = false;
     float t1, t2;
 
-    batch_size = crops.size();
     for (auto &ob: this->output_bindings)
     {
         if (ob.name == "output0" && ob.dims.nbDims == 3)
         {
+            batch_size = ob.dims.d[0];
             det_length = ob.dims.d[1];
             num_dets = ob.dims.d[2];
             flag = true;
         }
+    }
+
+    if (crops.size() > batch_size)
+    {
+        LOG(WARNING) << "crops size is larger than batch_size";
+    }
+    else
+    {
+        batch_size = crops.size();
     }
     
     LOG_ASSERT(flag) << " output binding dims is not 3";

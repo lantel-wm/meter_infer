@@ -7,6 +7,7 @@ weights/*
 engines/*
 logs/*
 py_infer/*
+visualize/
 # vscode ================================
 .vscode/*
 !.vscode/settings.json

@@ -218,7 +218,8 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
 
 // consumer thread, read frames from the buffer and do meter reading
 void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &display_result,
-    int det_batch, int seg_batch, meterReader &meter_reader, mysqlServer &mysql_server)
+    int det_batch, int seg_batch, meterReader &meter_reader, mysqlServer &mysql_server, 
+    std::vector<float> &last_valid_readings)
 {
     // save the readings to database every 1 seconds for each camera
     // maintain a vector of last save time for each camera
@@ -267,12 +268,42 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &dis
             std::unique_lock<std::mutex> lock(pc.GetMutex());
             for (auto &meter_info: meters)
             {
+                meter_info.error = false;
+		if (meter_info.instrument_id >= meter_reader.get_instrument_num())
+		{
+		    continue;
+		}
+                if (meter_info.meter_reading_value < 0)
+                {
+                    LOG(WARNING) << "read error, value < 0";
+                    meter_info.meter_reading_value = last_valid_readings[meter_info.instrument_id];
+                    if (meter_info.class_id == 0)
+                    {
+                        char meter_reading[20];
+                        sprintf(meter_reading, "%.2f kPa", meter_info.meter_reading_value);
+                        meter_info.meter_reading = meter_reading;
+                    }
+                    else if (meter_info.class_id == 1)
+                    {
+                        meter_info.meter_reading = std::to_string(int(meter_info.meter_reading_value * 100)) + "%";
+                    }
+                    meter_info.error = true;
+                }
+                else
+                {
+                    last_valid_readings[meter_info.instrument_id] = meter_info.meter_reading_value;
+                }
                 display_result[meter_info.instrument_id] = meter_info;
             }
             lock.unlock();
         }
 
-        LOG(INFO) <<  meters.size() << " meters detected";
+        // for (auto &reading: last_valid_readings)
+        // {
+        //     LOG(WARNING) << reading;
+        // }
+
+        // LOG(INFO) <<  meters.size() << " meters detected";
 
         // for (auto &meter_info: meters)
         // {
@@ -606,16 +637,18 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls,
     // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     setupCameraInstrumentMapping(std::ref(pc), stream_urls, std::ref(meter_reader), std::ref(mysql_server));
     std::vector<MeterInfo> display_result(meter_reader.get_instrument_num()); // display result
-    // init display result
+    std::vector<float> last_valid_readings(meter_reader.get_instrument_num()); // last valid readings
+    // init display result and last valid readings
     for (int instrument_id = 0; instrument_id < meter_reader.get_instrument_num(); instrument_id++)
     {
         display_result[instrument_id].instrument_id = instrument_id;
         display_result[instrument_id].meter_reading = "0";
         display_result[instrument_id].rect = cv::Rect(0, 0, 0, 0);
         display_result[instrument_id].class_name = "N/A";
+        last_valid_readings[instrument_id] = 0;
     }
 
-    std::thread consumer(ConsumerThread, std::ref(pc), std::ref(display_result), det_batch, seg_batch, std::ref(meter_reader), std::ref(mysql_server));
+    std::thread consumer(ConsumerThread, std::ref(pc), std::ref(display_result), det_batch, seg_batch, std::ref(meter_reader), std::ref(mysql_server), std::ref(last_valid_readings));
     std::thread display(DisplayThread, std::ref(pc), std::ref(display_result));
     // std::thread heartbeat(HeartbeatThread, stream_urls, 60);
     std::thread insert_reading(InsertReadingThread, std::ref(pc), std::ref(display_result), std::ref(mysql_server), 1);

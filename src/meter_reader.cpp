@@ -129,8 +129,8 @@ bool meterReader::read_error(std::vector<FrameInfo> &frame_batch)
 bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInfo> &meters)
 {
     // TODO: use a 2d vector to store different kinds of meters
-    std::vector<CropInfo> crops_meter; // cropped meter
-    std::vector<CropInfo> crops_water; // cropped water
+    std::vector<CropInfo> crops_meter(0); // cropped meter
+    std::vector<CropInfo> crops_water(0); // cropped water
     
     meters.clear();
     // auto t1 = clock();
