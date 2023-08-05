@@ -1,20 +1,20 @@
 /*
 An implementation of producer-consumer pattern, the resources are frames from RTSP server,
-producer produces frames, consumer consumes frames. 
+producer produces frames, consumer consumes frames.
 
 More precisely, the producer thread reads frames from RTSP server and put them into the buffer,
 the consumer thread reads frames from the buffer and do meter reading. Additionally, there is
 a display thread which reads frames from the buffer and display them on the screen.
 
 There is a little difference between this implementation and traditional producer-consumer pattern.
-In this implementation, there are two buffers. The first buffer, called queue_, is a queue. It is 
-the traditionalbuffer in producer-consumer pattern which stores the resources for producers to 
-produce and consumers to consume. When the buffer is full, the producer thread will be blocked 
+In this implementation, there are two buffers. The first buffer, called queue_, is a queue. It is
+the traditionalbuffer in producer-consumer pattern which stores the resources for producers to
+produce and consumers to consume. When the buffer is full, the producer thread will be blocked
 until the buffer is not full. When the buffer is empty, the consumer thread will be blocked until
 the buffer is not empty.
 
 The second buffer, called buffers_, is a vector of queues, each queue in the vector is
-a buffer for a camera. This buffer is used to display the real-time frames. Therefore, 
+a buffer for a camera. This buffer is used to display the real-time frames. Therefore,
 when one of the second buffers is full, the producer thread will not be blocked, it will
 continue to produce frames and overwrite the oldest frame in the buffer. When one of the
 second buffers is empty, the display thread will not be blocked, it will continue to display
@@ -142,9 +142,9 @@ void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
     // {
     //     LOG(INFO) << meter_info.class_name << " " << meter_info.meter_reading << " " << meter_info.rect.x << " " << meter_info.rect.y << " " << meter_info.rect.width << " " << meter_info.rect.height;
     // }
-    
+
     for (int thread_id = 0; thread_id < frames.size(); thread_id++)
-    {   
+    {
         // put camera_id on the top left corner
         std::string display_text0 = "camera_id: " + std::to_string(thread_id);
         cv::Scalar color = cv::Scalar(0, 0, 0);
@@ -154,7 +154,7 @@ void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
     for (int instrument_id = 0; instrument_id < meters.size(); instrument_id++)
     {
         MeterInfo meter_info = meters[instrument_id];
-        std::string display_text = std::to_string(meter_info.instrument_id) + " " +  meter_info.meter_reading;
+        std::string display_text = std::to_string(meter_info.instrument_id) + " " + meter_info.meter_reading;
         cv::Scalar color = COLORS[meter_info.class_id];
         cv::rectangle(frames[meter_info.camera_id], meter_info.rect, color, 4);
         cv::putText(frames[meter_info.camera_id], display_text, cv::Point(meter_info.rect.x, meter_info.rect.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
@@ -162,7 +162,8 @@ void draw_boxes(std::vector<cv::Mat> &frames, std::vector<MeterInfo> meters)
 }
 
 // producer thread, read frames from RTSP server and put them into the buffer
-void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_url, int thread_id) {
+void ProducerThread(ProducerConsumer<FrameInfo> &pc, const std::string &stream_url, int thread_id)
+{
     cv::VideoCapture cap(stream_url);
     cv::Mat frame;
 
@@ -181,12 +182,26 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
         {
             pc.SetInactive(thread_id);
             LOG(ERROR) << "Thread " << thread_id << " cannot open the camera, retry in 1s...";
-            cv::waitKey(1000);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
             continue;
         }
-        
-        while (cap.read(frame))
+
+        int retry_cnt = 0;
+
+        while (true)
         {
+            if (retry_cnt >= 5)
+            {
+                break;
+            }
+            if (!cap.read(frame))
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                retry_cnt++;
+                LOG(WARNING) << "Cannot read frame, retry time: " << retry_cnt;
+                continue;
+            }
+
             pc.SetActive(thread_id);
 
             FrameInfo frame_info;
@@ -195,14 +210,14 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
             frame_info.camera_id = thread_id;
             pc.Produce(frame_info);
             pc.Write(frame_info, thread_id);
-            
+
             // frame rate control
             std::chrono::steady_clock::time_point currentFrameTime = std::chrono::steady_clock::now();
             std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentFrameTime - lastFrameTime);
             std::chrono::milliseconds remaining = frameInterval - elapsed;
             if (remaining > std::chrono::milliseconds::zero())
             {
-                std::this_thread::sleep_for(remaining);
+                cv::waitKey(remaining.count());
             }
 
             // update last frame time
@@ -211,15 +226,15 @@ void ProducerThread(ProducerConsumer<FrameInfo>& pc, const std::string& stream_u
 
         LOG(ERROR) << "Thread " << thread_id << "connection lost, retry in 1s...";
         cap.release();
-        cv::waitKey(1000);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     pc.Stop(thread_id);
 }
 
 // consumer thread, read frames from the buffer and do meter reading
-void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &display_result,
-    int det_batch, int seg_batch, meterReader &meter_reader, mysqlServer &mysql_server, 
-    std::vector<float> &last_valid_readings)
+void ConsumerThread(ProducerConsumer<FrameInfo> &pc, std::vector<MeterInfo> &display_result,
+                    int det_batch, int seg_batch, meterReader &meter_reader, mysqlServer &mysql_server,
+                    std::vector<float> &last_valid_readings)
 {
     // save the readings to database every 1 seconds for each camera
     // maintain a vector of last save time for each camera
@@ -230,9 +245,9 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &dis
     //     last_save_times[instrument_id] = std::chrono::steady_clock::now();
     // }
 
-    while (true) 
+    while (true)
     {
-        if (pc.IsStopped()) 
+        if (pc.IsStopped())
         {
             LOG(WARNING) << "meter reader thread stopped";
             break;
@@ -241,7 +256,8 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &dis
         for (int ibatch = 0; ibatch < det_batch; ibatch++)
         {
             FrameInfo frame_info = pc.Consume();
-            if (frame_info.frame.empty()) {
+            if (frame_info.frame.empty())
+            {
                 continue;
             }
             // cv::imwrite("frame.png", frame_info.frame);
@@ -256,26 +272,26 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &dis
 
         auto t2 = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-        
-        LOG(WARNING) << "meter reading time: " << duration << " ms";
+
+        // LOG(WARNING) << "meter reading time: " << duration << " ms";
 
         if (read_error) // no meter detected, skip update
         {
-            LOG(WARNING) << "read error, skip update";   
+            // LOG(WARNING) << "read error, skip update";
         }
         else // meters detected
         {
             std::unique_lock<std::mutex> lock(pc.GetMutex());
-            for (auto &meter_info: meters)
+            for (auto &meter_info : meters)
             {
                 meter_info.error = false;
-		if (meter_info.instrument_id >= meter_reader.get_instrument_num())
-		{
-		    continue;
-		}
+                if (meter_info.instrument_id >= meter_reader.get_instrument_num())
+                {
+                    continue;
+                }
                 if (meter_info.meter_reading_value < 0)
                 {
-                    LOG(WARNING) << "read error, value < 0";
+                    // LOG(WARNING) << "read error, value < 0";
                     meter_info.meter_reading_value = last_valid_readings[meter_info.instrument_id];
                     if (meter_info.class_id == 0)
                     {
@@ -318,13 +334,12 @@ void ConsumerThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &dis
     }
 }
 
-
 // display thread
-void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &display_result)
+void DisplayThread(ProducerConsumer<FrameInfo> &pc, std::vector<MeterInfo> &display_result)
 {
     cv::namedWindow("Display", cv::WINDOW_NORMAL);
 
-    int fps = 30;
+    double fps = 25.0;
     std::chrono::milliseconds frameInterval(static_cast<int>(1000.0 / fps));
     std::chrono::steady_clock::time_point lastFrameTime = std::chrono::steady_clock::now();
     std::vector<cv::Mat> frames(pc.GetNumBuffer());
@@ -332,12 +347,17 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &disp
 
     std::vector<MeterInfo> display_result_copy;
 
-    while (true) 
+    cv::VideoWriter wr;
+    int encode_type = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
+    std::string video_filename = "save.avi";
+    wr.open(video_filename, encode_type, fps, cv::Size(1920, 1080), true);
+
+    while (true)
     {
         FrameInfo frame_info;
         bool all_empty = true;
         // read all frames in sequence of thread_id
-        for (int thread_id = 0; thread_id < pc.GetNumBuffer(); thread_id++) 
+        for (int thread_id = 0; thread_id < pc.GetNumBuffer(); thread_id++)
         {
             if (!pc.Read(frame_info, thread_id))
             {
@@ -347,9 +367,9 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &disp
             frames[thread_id] = frame_info.frame.clone();
             // frame_batch[thread_id] = frame_info;
         }
-        
 
-        if (all_empty) {
+        if (all_empty)
+        {
             LOG(WARNING) << "all frames are empty, exiting display thread ...";
             break;
         }
@@ -357,35 +377,37 @@ void DisplayThread(ProducerConsumer<FrameInfo>& pc, std::vector<MeterInfo> &disp
         std::unique_lock<std::mutex> lock(pc.GetMutex());
         display_result_copy = display_result;
         lock.unlock();
-        
+
         // draw all boxes in all frames
         cv::Mat display_frame;
         draw_boxes(frames, display_result_copy);
         merge_frames(frames, display_frame);
         cv::imshow("Display", display_frame);
+        wr.write(display_frame);
 
-        if (cv::waitKey(1) == 27) 
+        if (cv::waitKey(1) == 27)
         {
             LOG(WARNING) << "esc key is pressed by user, exiting display thread ...";
             break;
         }
 
         // LOG_ASSERT(0) << " stop here";
-    
+
         std::chrono::steady_clock::time_point currentFrameTime = std::chrono::steady_clock::now();
         std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentFrameTime - lastFrameTime);
         std::chrono::milliseconds remaining = frameInterval - elapsed;
-        if (remaining > std::chrono::milliseconds::zero()) {
+        if (remaining > std::chrono::milliseconds::zero())
+        {
             std::this_thread::sleep_for(remaining);
         }
 
         // update last frame time
         lastFrameTime = currentFrameTime;
-    }   
+    }
     cv::destroyAllWindows();
+    wr.release();
     // pc.StopAll();
 }
-
 
 // send a RTSP GET_PARAMETER request to the RTSP server
 void sendGetParameter(std::string rtsp_server_url)
@@ -398,11 +420,12 @@ void sendGetParameter(std::string rtsp_server_url)
         return;
     }
 
-    // parse the rtsp url to extract rtsp server ip and port 
-    char* rtsp_server_ip_cstr = new char[rtsp_server_url.length() + 1];
+    // parse the rtsp url to extract rtsp server ip and port
+    char *rtsp_server_ip_cstr = new char[rtsp_server_url.length() + 1];
+    char *rtsp_server_path_cstr = new char[rtsp_server_url.length() + 1];
     int rtsp_server_port;
 
-    if (sscanf(rtsp_server_url.c_str(), "rtsp://%*[^:]:%*[^@]@%[^:]:%d", rtsp_server_ip_cstr, &rtsp_server_port) != 2)
+    if (sscanf(rtsp_server_url.c_str(), "rtsp://%*[^:]:%*[^@]@%[^:]:%d%s", rtsp_server_ip_cstr, &rtsp_server_port, rtsp_server_path_cstr) != 3)
     {
         LOG(ERROR) << "ERROR parsing RTSP url: " << rtsp_server_url;
         close(sockfd);
@@ -410,10 +433,13 @@ void sendGetParameter(std::string rtsp_server_url)
     }
 
     std::string rtsp_server_ip(rtsp_server_ip_cstr);
+    std::string rtsp_server_path(rtsp_server_path_cstr);
     delete[] rtsp_server_ip_cstr;
+    delete[] rtsp_server_path_cstr;
 
     LOG(INFO) << "rtsp server ip: " << rtsp_server_ip;
     LOG(INFO) << "rtsp server port: " << rtsp_server_port;
+    LOG(INFO) << "rtsp server path: " << rtsp_server_path;
 
     // connect to the RTSP server
     struct sockaddr_in server_addr;
@@ -422,17 +448,20 @@ void sendGetParameter(std::string rtsp_server_url)
     server_addr.sin_port = htons(rtsp_server_port);
     inet_pton(AF_INET, rtsp_server_ip.c_str(), &(server_addr.sin_addr));
 
-    if (connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
+    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
         LOG(ERROR) << "ERROR connecting to RTSP server";
         close(sockfd);
         return;
     }
 
+    // std::string rtsp_get_param_url = "rtsp://" + rtsp_server_ip + ":" + std::to_string(rtsp_server_port) + rtsp_server_path;
+    // LOG(INFO) << "rtsp get parameter url: " << rtsp_get_param_url;
+
     // build the GET_PARAMETER request
     std::string request = "GET_PARAMETER " + rtsp_server_url + " RTSP/1.0\r\n";
-    request += "CSeq: 1\r\n";
-    request += "\r\n";
+    // request += "CSeq: 1\r\n";
+    // request += "\r\n";
 
     // send the GET_PARAMETER request
     if (send(sockfd, request.c_str(), request.length(), 0) < 0)
@@ -454,7 +483,7 @@ void HeartbeatThread(std::vector<std::string> stream_urls, int interval_seconds)
     while (true)
     {
         std::this_thread::sleep_for(std::chrono::seconds(interval_seconds));
-        for (auto &stream_url: stream_urls)
+        for (auto &stream_url : stream_urls)
         {
             sendGetParameter(stream_url);
             break;
@@ -464,17 +493,17 @@ void HeartbeatThread(std::vector<std::string> stream_urls, int interval_seconds)
 
 void draw_instrument_id(std::vector<FrameInfo> &frame_batch)
 {
-    for (auto &frame_info: frame_batch)
+    for (auto &frame_info : frame_batch)
     {
         cv::Mat frame = frame_info.frame;
         std::vector<DetObject> objs = frame_info.det_objs;
-        
+
         // put camera_id on the top left corner
         std::string display_text0 = "camera_id: " + std::to_string(frame_info.camera_id);
         cv::Scalar color0 = cv::Scalar(0, 0, 0);
         cv::putText(frame, display_text0, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1, color0, 2);
 
-        for (auto &obj: objs)
+        for (auto &obj : objs)
         {
             std::string display_text = "instrument_id: " + std::to_string(obj.instrument_id);
             cv::Scalar color = COLORS[obj.class_id];
@@ -485,11 +514,10 @@ void draw_instrument_id(std::vector<FrameInfo> &frame_batch)
 }
 
 void setupCameraInstrumentMapping(
-    ProducerConsumer<FrameInfo> &pc, 
-    std::vector<std::string> stream_urls, 
+    ProducerConsumer<FrameInfo> &pc,
+    std::vector<std::string> stream_urls,
     meterReader &meter_reader,
-    mysqlServer &mysql_server
-    )
+    mysqlServer &mysql_server)
 {
     while (true)
     {
@@ -499,7 +527,7 @@ void setupCameraInstrumentMapping(
             std::this_thread::sleep_for(std::chrono::seconds(1));
             continue;
         }
-        
+
         // get one frame from each camera
         int num_cam = pc.GetNumBuffer();
         std::vector<FrameInfo> frame_batch(num_cam);
@@ -516,7 +544,7 @@ void setupCameraInstrumentMapping(
             // TODO:set mysql
             // table name: Cameras
             // column name: camera_id, camera_url
-            
+
             for (int iobj = 0; iobj < frame_batch[camera_id].det_objs.size(); iobj++)
             {
                 // TODO:set mysql
@@ -530,9 +558,9 @@ void setupCameraInstrumentMapping(
 
         std::cout << "All instrument_id set, showing the result..." << std::endl;
 
-        for (auto &frame_info: frame_batch)
+        for (auto &frame_info : frame_batch)
         {
-            for (auto &obj: frame_info.det_objs)
+            for (auto &obj : frame_info.det_objs)
             {
                 std::cout << obj.instrument_id << std::endl;
             }
@@ -542,7 +570,7 @@ void setupCameraInstrumentMapping(
 
         std::vector<cv::Mat> frames;
         cv::Mat display_frame;
-        for (auto &frame_info: frame_batch)
+        for (auto &frame_info : frame_batch)
         {
             frames.push_back(frame_info.frame);
         }
@@ -556,7 +584,7 @@ void setupCameraInstrumentMapping(
         cv::imwrite("instrument_id.png", display_frame);
         cv::waitKey(0);
         // cv::destroyAllWindows();
-        
+
         char c;
         while (true)
         {
@@ -589,14 +617,13 @@ void setupCameraInstrumentMapping(
             break;
         }
     }
-
 }
 
 void InsertReadingThread(ProducerConsumer<FrameInfo> &pc, std::vector<MeterInfo> &meters, mysqlServer &mysql_server, int interval_seconds)
 {
     auto next_time = std::chrono::system_clock::now() + std::chrono::seconds(interval_seconds);
     std::vector<MeterInfo> meters_copy;
-    while(true)
+    while (true)
     {
         std::unique_lock<std::mutex> lock(pc.GetMutex());
         meters_copy = meters;
@@ -614,14 +641,14 @@ void InsertReadingThread(ProducerConsumer<FrameInfo> &pc, std::vector<MeterInfo>
 // seg_batch: batch size for segmentation
 // det_model: path to detection model
 // seg_model: path to segmentation model
-void run(int num_cam, int capacity, std::vector<std::string> stream_urls, 
-    int det_batch, int seg_batch, std::string det_model, std::string seg_model,
-    int debug_on) 
+void run(int num_cam, int capacity, std::vector<std::string> stream_urls,
+         int det_batch, int seg_batch, std::string det_model, std::string seg_model,
+         int debug_on)
 {
     meterReader meter_reader(det_model, seg_model, det_batch, seg_batch);
 
     mysqlServer mysql_server(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD, MYSQL_DB, debug_on);
-    
+
     // std::vector<MeterInfo> meters_buffer(num_cam);
 
     ProducerConsumer<FrameInfo> pc(capacity, num_cam);
@@ -629,14 +656,14 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls,
     std::vector<std::thread> producers;
 
     // create threads for each camera
-    for (int thread_id = 0; thread_id < num_cam; thread_id++) 
+    for (int thread_id = 0; thread_id < num_cam; thread_id++)
     {
         producers.emplace_back(ProducerThread, std::ref(pc), stream_urls[thread_id], thread_id);
     }
 
     // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     setupCameraInstrumentMapping(std::ref(pc), stream_urls, std::ref(meter_reader), std::ref(mysql_server));
-    std::vector<MeterInfo> display_result(meter_reader.get_instrument_num()); // display result
+    std::vector<MeterInfo> display_result(meter_reader.get_instrument_num());  // display result
     std::vector<float> last_valid_readings(meter_reader.get_instrument_num()); // last valid readings
     // init display result and last valid readings
     for (int instrument_id = 0; instrument_id < meter_reader.get_instrument_num(); instrument_id++)
@@ -650,10 +677,10 @@ void run(int num_cam, int capacity, std::vector<std::string> stream_urls,
 
     std::thread consumer(ConsumerThread, std::ref(pc), std::ref(display_result), det_batch, seg_batch, std::ref(meter_reader), std::ref(mysql_server), std::ref(last_valid_readings));
     std::thread display(DisplayThread, std::ref(pc), std::ref(display_result));
-    // std::thread heartbeat(HeartbeatThread, stream_urls, 60);
+    // std::thread heartbeat(HeartbeatThread, stream_urls, 5);
     std::thread insert_reading(InsertReadingThread, std::ref(pc), std::ref(display_result), std::ref(mysql_server), 1);
-    
-    for (auto& producer : producers) 
+
+    for (auto &producer : producers)
     {
         producer.join();
     }

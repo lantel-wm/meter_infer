@@ -158,6 +158,20 @@ bool meterReader::read(std::vector<FrameInfo> &frame_batch, std::vector<MeterInf
 
     read_number(meters, crops_meter, crops_water);
 
+    // release crops
+    for (int i = 0; i < crops_meter.size(); i++)
+    {
+        crops_meter[i].crop.release();
+        crops_meter[i].mask_pointer.release();
+        crops_meter[i].mask_scale.release();
+    }
+    for (int i = 0; i < crops_water.size(); i++)
+    {
+        crops_water[i].crop.release();
+        crops_water[i].mask_pointer.release();
+        crops_water[i].mask_scale.release();
+    }
+
     return false;
     // draw_boxes(frame_batch, meters);
 }

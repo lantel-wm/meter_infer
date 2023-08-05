@@ -243,7 +243,7 @@ void meterReader::read_meter(std::vector<CropInfo> &crops_meter, std::vector<Met
 
         // cv::imwrite("./mask_scale_" + std::to_string(im) + ".png", mask_scale * 255);
         // cv::imwrite("./mask_pointer_" + std::to_string(im) + ".png", mask_pointer * 255);
-        
+    
         std::vector<std::vector<cv::Point> > contours;
         std::vector<cv::Vec4i> hierarchy;
         std::vector<cv::Point2f> points;
@@ -441,7 +441,7 @@ void meterReader::read_water(std::vector<CropInfo> &crops_water, std::vector<Met
         meter_info.class_id = 1; // water
         meter_info.class_name = "water";
         meter_info.frame_batch_id = crops_water[im].frame_batch_id;
-        meter_info.meter_reading = std::to_string(level_percent) + " %";
+        meter_info.meter_reading = std::to_string(level_percent) + "%";
         meter_info.meter_reading_value = level_percent / 100.f;
 
         // debug_info

@@ -1,5 +1,6 @@
 #include <ctime>
 #include <iostream>
+#include <fstream>
 #include <time.h>
 #include <thread>
 #include <mutex>
@@ -10,9 +11,11 @@
 #include "pro_con.hpp"
 #include "meter_reader.hpp"
 #include "yolo.hpp"
+#include "json.hpp"
 #include "config.hpp"
 
 using namespace google;
+using json = nlohmann::json;
 
 int main(int argc, char **argv)
 {
@@ -49,24 +52,21 @@ int main(int argc, char **argv)
     std::string source = parser.get<std::string>("source");
     int debug_on = parser.get<int>("debug"); // 1: debug mode, 0: normal mode
 
-    std::vector<std::string> stream_urls = {
-        "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
-        "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
-        "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
-        "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
-        "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
-        "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
-        "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
-        "rtsp://admin:a120070001@192.168.1.100:554/Streaming/Channels/201",
-        // "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4",
-        // "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4",
-        // "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4",
-        // "/home/zzy/cublas_test/data/201.mp4", 
-        // "/home/zzy/cublas_test/data/201.mp4",
-    };
+    std::fstream fs(PROJECT_PATH + "config.json");
+    json data = json::parse(fs);
+
+    std::vector<std::string> stream_urls = data["stream_urls"];
+    std::string det_model_format = data["det_model"];
+    std::string seg_model_format = data["seg_model"];
+    char det_model_cstr[100];
+    char seg_model_cstr[100];
+    sprintf(det_model_cstr, det_model_format.c_str(), det_batch);
+    sprintf(seg_model_cstr, seg_model_format.c_str(), seg_batch);
+    std::string det_model(det_model_cstr);
+    std::string seg_model(seg_model_cstr);
+
+    LOG(WARNING) << "det_model: " << det_model;
+    LOG(WARNING) << "seg_model: " << seg_model;
 
     if (stream_urls.size() != num_cam)
     {
@@ -74,9 +74,17 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    // init meter reader
-    std::string det_model = "yolov8n_batch" + std::to_string(det_batch) + "_20230728.trt";
-    std::string seg_model = "yolov8s-seg_batch" + std::to_string(seg_batch) + "_20230728.trt";
+    // model file not found
+    // if (access(det_model.c_str(), F_OK) == -1)
+    // {
+    //     LOG(ERROR) << "detector model file not found, check \'det_model\' in config.json";
+    //     exit(1);
+    // }
+    // if (!access(seg_model.c_str(), F_OK) == -1)
+    // {
+    //     LOG(ERROR) << "segmenter model file not found, check \'seg_model\' in config.json";
+    //     exit(1);
+    // }
     
     run(num_cam, num_cam * 4, stream_urls, det_batch, seg_batch, det_model, seg_model, debug_on);
     

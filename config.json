@@ -1,0 +1,8 @@
+{
+    "stream_urls": [
+        "rtsp://admin:a120070001@10.168.1.103:554/Streaming/Channels/101"
+    ],
+
+    "det_model": "yolov8n_batch%d_20230728.trt",
+    "seg_model": "yolov8s-seg_batch%d_20230728.trt"
+}
