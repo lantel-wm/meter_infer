@@ -46,18 +46,8 @@ struct FrameInfo
 };
 
 // Store crop information. Crops are obtained from the detection results.
-struct CropInfo
-{
-    cv::Mat crop; // 640x640
-    cv::Mat mask_pointer; // 160x160, obtained from the segmentation results
-    cv::Mat mask_scale; // 160x160, obtained from the segmentation results
-    cv::Rect rect; // rect(x, y, w, h), (x, y) is the upperleft point
-    int class_id;
-    int frame_batch_id; // frame batch id
-    int camera_id; // camera id
-    int instrument_id; // meter identifier in the frame, sorted by the coordinate of the upperleft point
-    std::vector<DetObject> det_objs; // scales or pointer or water level
-};
+
+
 
 // Store meter information. Meters are obtained from the segmentation results.
 struct MeterInfo
